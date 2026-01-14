@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  EMPLEADO
+  GESTOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVO
+  INACTIVO
+}
+
+enum SuggestionType {
+  SUGERENCIA
+  RECLAMO
+}
+
+enum JustificationStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+model User {
+  id              String         @id @default(uuid())
+  documento       String         @unique
+  nombre          String
+  email           String         @unique
+  contrasena      String
+  area_id         String?
+  area            Area?          @relation(fields: [area_id], references: [id])
+  rol             Role           @default(EMPLEADO)
+  estado          UserStatus     @default(ACTIVO)
+  fecha_registro  DateTime       @default(now())
+  
+  suggestions     Suggestion[]
+  justifications  Justification[]
+  approvedJustifications Justification[] @relation("ApprovedBy")
+}
+
+model Area {
+  id              String         @id @default(uuid())
+  nombre          String         @unique
+  descripcion     String?
+  
+  users           User[]
+  suggestions     Suggestion[]
+  justifications  Justification[]
+}
+
+model Suggestion {
+  id              String         @id @default(uuid())
+  usuario_id      String
+  usuario         User           @relation(fields: [usuario_id], references: [id])
+  area_id         String?
+  area            Area?          @relation(fields: [area_id], references: [id])
+  tipo            SuggestionType @default(SUGERENCIA)
+  titulo          String
+  descripcion     String
+  fecha_creacion  DateTime       @default(now())
+  
+  attachments     SuggestionAttachment[]
+}
+
+model SuggestionAttachment {
+  id              String         @id @default(uuid())
+  suggestion_id   String
+  suggestion      Suggestion     @relation(fields: [suggestion_id], references: [id])
+  nombre_archivo  String
+  ruta_archivo    String
+  tipo_archivo    String
+  tamano          Int
+  fecha_carga     DateTime       @default(now())
+}
+
+model Justification {
+  id              String         @id @default(uuid())
+  usuario_id      String
+  usuario         User           @relation(fields: [usuario_id], references: [id])
+  area_id         String?
+  area            Area?          @relation(fields: [area_id], references: [id])
+  titulo          String
+  descripcion     String
+  fecha_evento    DateTime
+  hora_inicio     String?
+  hora_fin        String?
+  estado          JustificationStatus @default(PENDIENTE)
+  razon_rechazo   String?
+  aprobado_por    String?
+  aprobador       User?          @relation("ApprovedBy", fields: [aprobado_por], references: [id])
+  fecha_creacion  DateTime       @default(now())
+  fecha_actualizacion DateTime   @updatedAt
+
+  attachments     JustificationAttachment[]
+}
+
+model JustificationAttachment {
+  id               String        @id @default(uuid())
+  justification_id String
+  justification    Justification @relation(fields: [justification_id], references: [id])
+  nombre_archivo   String
+  ruta_archivo     String
+  tipo_archivo     String
+  fecha_carga      DateTime      @default(now())
+}
