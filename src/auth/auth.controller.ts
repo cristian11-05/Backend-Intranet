@@ -7,7 +7,15 @@ export class AuthController {
 
     @HttpCode(HttpStatus.OK)
     @Post('login')
-    signIn(@Body() signInDto: Record<string, any>) {
-        return this.authService.signIn(signInDto.username || signInDto.email || signInDto.dni, signInDto.password);
+    async signIn(@Body() signInDto: Record<string, any>) {
+        console.log('Login attempt:', signInDto);
+        try {
+            const result = await this.authService.signIn(signInDto.username || signInDto.email || signInDto.dni, signInDto.password);
+            console.log('Login success for:', signInDto.username || signInDto.email || signInDto.dni);
+            return result;
+        } catch (error) {
+            console.error('Login failed:', error.message);
+            throw error;
+        }
     }
 }
