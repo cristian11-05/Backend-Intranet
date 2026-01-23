@@ -9,44 +9,56 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UsersService = void 0;
+exports.OrdersService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
-let UsersService = class UsersService {
+let OrdersService = class OrdersService {
     prisma;
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async findOne(where) {
-        return this.prisma.user.findFirst({
-            where,
+    async create(userId, data) {
+        return this.prisma.order.create({
+            data: {
+                userId,
+                description: data.description,
+                amount: data.amount,
+            },
+            include: {
+                user: {
+                    select: {
+                        nombre: true,
+                        email: true,
+                    }
+                }
+            }
         });
     }
     async findAll() {
-        return this.prisma.user.findMany({
-            orderBy: { createdAt: 'desc' }
+        return this.prisma.order.findMany({
+            include: {
+                user: {
+                    select: {
+                        nombre: true,
+                        email: true,
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
         });
     }
-    async create(data) {
-        return this.prisma.user.create({
-            data,
-        });
-    }
-    async update(id, data) {
-        return this.prisma.user.update({
+    async updateStatus(id, status) {
+        return this.prisma.order.update({
             where: { id },
-            data,
-        });
-    }
-    async remove(id) {
-        return this.prisma.user.delete({
-            where: { id },
+            data: { status },
         });
     }
 };
-exports.UsersService = UsersService;
-exports.UsersService = UsersService = __decorate([
+exports.OrdersService = OrdersService;
+exports.OrdersService = OrdersService = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService])
-], UsersService);
-//# sourceMappingURL=users.service.js.map
+], OrdersService);
+//# sourceMappingURL=orders.service.js.map

@@ -12,6 +12,7 @@ const jwt_1 = require("@nestjs/jwt");
 const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const users_module_1 = require("../users/users.module");
+const prisma_module_1 = require("../prisma/prisma.module");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -19,6 +20,7 @@ exports.AuthModule = AuthModule = __decorate([
     (0, common_1.Module)({
         imports: [
             users_module_1.UsersModule,
+            prisma_module_1.PrismaModule,
             jwt_1.JwtModule.register({
                 global: true,
                 secret: process.env.JWT_SECRET || 'super-secret-key-change-me',

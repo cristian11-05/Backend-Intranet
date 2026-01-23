@@ -22,14 +22,24 @@ let AuthController = class AuthController {
     }
     async signIn(signInDto) {
         console.log('Login attempt:', signInDto);
+        const { username, email, dni, password, deviceId, deviceName } = signInDto;
+        const identifier = username || email || dni;
         try {
-            const result = await this.authService.signIn(signInDto.username || signInDto.email || signInDto.dni, signInDto.password);
-            console.log('Login success for:', signInDto.username || signInDto.email || signInDto.dni);
+            const result = await this.authService.signIn(identifier, password, { deviceId, deviceName });
+            console.log('Login success for:', identifier);
             return result;
         }
         catch (error) {
             console.error('Login failed:', error.message);
             throw error;
+        }
+    }
+    async refresh(body) {
+        try {
+            return await this.authService.refreshTokens(body.userId, body.refreshToken);
+        }
+        catch (error) {
+            throw new common_1.UnauthorizedException('Refresh failed');
         }
     }
 };
@@ -42,6 +52,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "signIn", null);
+__decorate([
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, common_1.Post)('refresh'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "refresh", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
     __metadata("design:paramtypes", [auth_service_1.AuthService])

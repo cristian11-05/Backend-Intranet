@@ -14,12 +14,66 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  dni       String?  @unique
-  email     String   @unique
-  password  String
-  name      String?
-  role      String   @default("USER")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int           @id @default(autoincrement())
+  documento    String?       @unique
+  email        String        @unique
+  password     String        @default("123456")
+  nombre       String?
+  rol          String        @default("empleado")
+  sessions     UserSession[]
+  deviceTokens DeviceToken[]
+  orders       Order[]
+  area_id      String?
+  estado       String        @default("Activo")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model UserSession {
+  id                String    @id @default(uuid())
+  userId            Int
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash  String
+  deviceId          String?
+  deviceName        String?
+  ipAddress         String?
+  userAgent         String?
+  isRevoked         Boolean   @default(false)
+  expiresAt         DateTime
+  lastUsedAt        DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  deviceId   String
+  deviceName String?
+  osType     String? // 'android', 'ios'
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description String?
+  status      String   @default("PENDIENTE") // PENDIENTE, COMPLETADO, CANCELADO
+  amount      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
