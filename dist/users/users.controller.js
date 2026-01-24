@@ -24,9 +24,18 @@ let UsersController = class UsersController {
     async findAll() {
         return this.usersService.findAll();
     }
+    async export(res) {
+        const csv = await this.usersService.exportUsers();
+        res.header('Content-Type', 'text/csv');
+        res.attachment('usuarios.csv');
+        return res.send(csv);
+    }
     async create(createUserDto) {
         if (!createUserDto.password && createUserDto.documento) {
             createUserDto.password = createUserDto.documento;
+        }
+        if (!createUserDto.email && createUserDto.documento) {
+            createUserDto.email = `${createUserDto.documento}@sistema.com`;
         }
         return this.usersService.create(createUserDto);
     }
@@ -44,6 +53,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], UsersController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('export'),
+    __param(0, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], UsersController.prototype, "export", null);
 __decorate([
     (0, common_1.Post)(),
     __param(0, (0, common_1.Body)()),

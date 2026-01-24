@@ -1,0 +1,10 @@
+import { Module } from '@nestjs/common';
+import { ComunicadosService } from './comunicados.service';
+import { ComunicadosController } from './comunicados.controller';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Module({
+    controllers: [ComunicadosController],
+    providers: [ComunicadosService, PrismaService],
+})
+export class ComunicadosModule { }

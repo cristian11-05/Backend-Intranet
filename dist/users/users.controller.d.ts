@@ -1,3 +1,4 @@
+import type { Response } from 'express';
 import { UsersService } from './users.service';
 import { Prisma } from '@prisma/client';
 export declare class UsersController {
@@ -15,6 +16,7 @@ export declare class UsersController {
         createdAt: Date;
         updatedAt: Date;
     }[]>;
+    export(res: Response): Promise<Response<any, Record<string, any>>>;
     create(createUserDto: Prisma.UserCreateInput): Promise<{
         id: number;
         documento: string | null;

@@ -24,8 +24,27 @@ let UsersService = class UsersService {
     }
     async findAll() {
         return this.prisma.user.findMany({
+            where: { estado: { not: 'Inactivo' } },
             orderBy: { createdAt: 'desc' }
         });
+    }
+    async exportUsers() {
+        const users = await this.findAll();
+        const headers = ['ID', 'Documento', 'Email', 'Nombre', 'Rol', 'Estado', 'Creado'];
+        const csvRows = [headers.join(',')];
+        for (const user of users) {
+            const row = [
+                user.id,
+                user.documento || '',
+                user.email,
+                user.nombre || '',
+                user.rol,
+                user.estado,
+                user.createdAt.toISOString()
+            ];
+            csvRows.push(row.join(','));
+        }
+        return csvRows.join('\n');
     }
     async create(data) {
         return this.prisma.user.create({
@@ -39,8 +58,9 @@ let UsersService = class UsersService {
         });
     }
     async remove(id) {
-        return this.prisma.user.delete({
+        return this.prisma.user.update({
             where: { id },
+            data: { estado: 'Inactivo' }
         });
     }
 };

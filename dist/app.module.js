@@ -13,12 +13,16 @@ const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
 const users_module_1 = require("./users/users.module");
 const orders_module_1 = require("./orders/orders.module");
+const suggestions_module_1 = require("./suggestions/suggestions.module");
+const justifications_module_1 = require("./justifications/justifications.module");
+const notifications_module_1 = require("./notifications/notifications.module");
+const comunicados_module_1 = require("./comunicados/comunicados.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
-        imports: [auth_module_1.AuthModule, users_module_1.UsersModule, orders_module_1.OrdersModule],
+        imports: [auth_module_1.AuthModule, users_module_1.UsersModule, orders_module_1.OrdersModule, suggestions_module_1.SuggestionsModule, justifications_module_1.JustificationsModule, notifications_module_1.NotificationsModule, comunicados_module_1.ComunicadosModule],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
     })

@@ -14,8 +14,29 @@ export class UsersService {
 
     async findAll(): Promise<User[]> {
         return this.prisma.user.findMany({
+            where: { estado: { not: 'Inactivo' } },
             orderBy: { createdAt: 'desc' }
         });
+    }
+
+    async exportUsers(): Promise<string> {
+        const users = await this.findAll();
+        const headers = ['ID', 'Documento', 'Email', 'Nombre', 'Rol', 'Estado', 'Creado'];
+        const csvRows = [headers.join(',')];
+
+        for (const user of users) {
+            const row = [
+                user.id,
+                user.documento || '',
+                user.email,
+                user.nombre || '',
+                user.rol,
+                user.estado,
+                user.createdAt.toISOString()
+            ];
+            csvRows.push(row.join(','));
+        }
+        return csvRows.join('\n');
     }
 
     async create(data: Prisma.UserCreateInput): Promise<User> {
@@ -32,8 +53,9 @@ export class UsersService {
     }
 
     async remove(id: number): Promise<User> {
-        return this.prisma.user.delete({
+        return this.prisma.user.update({
             where: { id },
+            data: { estado: 'Inactivo' }
         });
     }
 }
