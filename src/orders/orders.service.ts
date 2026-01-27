@@ -23,20 +23,36 @@ export class OrdersService {
         });
     }
 
-    async findAll() {
-        return this.prisma.order.findMany({
-            include: {
-                user: {
-                    select: {
-                        nombre: true,
-                        email: true,
+    async findAll(page: number = 1, limit: number = 10) {
+        const skip = (page - 1) * limit;
+        const [data, total] = await Promise.all([
+            this.prisma.order.findMany({
+                include: {
+                    user: {
+                        select: {
+                            nombre: true,
+                            email: true,
+                        }
                     }
+                },
+                skip,
+                take: limit,
+                orderBy: {
+                    createdAt: 'desc'
                 }
-            },
-            orderBy: {
-                createdAt: 'desc'
+            }),
+            this.prisma.order.count(),
+        ]);
+
+        return {
+            data,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
             }
-        });
+        };
     }
 
     async updateStatus(id: number, status: string) {

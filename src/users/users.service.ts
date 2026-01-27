@@ -12,15 +12,34 @@ export class UsersService {
         });
     }
 
-    async findAll(): Promise<User[]> {
-        return this.prisma.user.findMany({
-            where: { estado: { not: 'Inactivo' } },
-            orderBy: { createdAt: 'desc' }
-        });
+    async findAll(page: number = 1, limit: number = 10) {
+        const skip = (page - 1) * limit;
+        const [data, total] = await Promise.all([
+            this.prisma.user.findMany({
+                where: { estado: { not: 'Inactivo' } },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' }
+            }),
+            this.prisma.user.count({
+                where: { estado: { not: 'Inactivo' } }
+            }),
+        ]);
+
+        return {
+            data,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            }
+        };
     }
 
     async exportUsers(): Promise<string> {
-        const users = await this.findAll();
+        // Para exportar, traemos un lote grande o implementamos una lógica sin paginación dedicada
+        const { data: users } = await this.findAll(1, 10000);
         const headers = ['ID', 'Documento', 'Email', 'Nombre', 'Rol', 'Estado', 'Creado'];
         const csvRows = [headers.join(',')];
 

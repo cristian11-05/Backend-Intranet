@@ -5,6 +5,7 @@ export declare class ComunicadosController {
     create(body: any, req: any): Promise<{
         status: boolean;
         data: {
+            id: number;
             titulo: string;
             contenido: string;
             imagen_url: string | null;
@@ -12,7 +13,6 @@ export declare class ComunicadosController {
             activo: boolean;
             created_at: Date;
             updated_at: Date;
-            id: number;
             autor_id: number;
         };
         message: string;
@@ -33,6 +33,7 @@ export declare class ComunicadosController {
                 updatedAt: Date;
             };
         } & {
+            id: number;
             titulo: string;
             contenido: string;
             imagen_url: string | null;
@@ -40,7 +41,6 @@ export declare class ComunicadosController {
             activo: boolean;
             created_at: Date;
             updated_at: Date;
-            id: number;
             autor_id: number;
         })[];
     }>;
@@ -60,6 +60,7 @@ export declare class ComunicadosController {
                 updatedAt: Date;
             };
         } & {
+            id: number;
             titulo: string;
             contenido: string;
             imagen_url: string | null;
@@ -67,7 +68,6 @@ export declare class ComunicadosController {
             activo: boolean;
             created_at: Date;
             updated_at: Date;
-            id: number;
             autor_id: number;
         }) | null;
     }>;
@@ -87,6 +87,7 @@ export declare class ComunicadosController {
                 updatedAt: Date;
             };
         } & {
+            id: number;
             titulo: string;
             contenido: string;
             imagen_url: string | null;
@@ -94,7 +95,6 @@ export declare class ComunicadosController {
             activo: boolean;
             created_at: Date;
             updated_at: Date;
-            id: number;
             autor_id: number;
         };
     }>;
