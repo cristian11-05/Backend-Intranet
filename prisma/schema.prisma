@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,114 +7,80 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           Int           @id @default(autoincrement())
-  documento    String?       @unique
-  email        String        @unique
-  password     String        @default("123456")
-  nombre       String?
-  rol          String        @default("empleado")
-  sessions     UserSession[]
-  deviceTokens DeviceToken[]
-  orders       Order[]
-  suggestions  Suggestion[]
-  justifications Justification[]
-  comunicados  Comunicado[]
-  area_id      String?
-  estado       String        @default("Activo")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+model areas {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(100)
+  descripcion String?
+  users       users[]
 }
 
-model UserSession {
-  id                String    @id @default(uuid())
-  userId            Int
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokenHash  String
-  deviceId          String?
-  deviceName        String?
-  ipAddress         String?
-  userAgent         String?
-  isRevoked         Boolean   @default(false)
-  expiresAt         DateTime
-  lastUsedAt        DateTime?
-  createdAt         DateTime  @default(now())
-
-  @@unique([userId, deviceId])
-  @@index([userId])
-  @@index([expiresAt])
+model comunicados {
+  id                  Int       @id @default(autoincrement())
+  titulo              String    @db.VarChar(255)
+  contenido           String
+  imagen_url          String?
+  autor_id            Int?
+  activo              Boolean?  @default(true)
+  fecha_publicacion   DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users?    @relation(fields: [autor_id], references: [id], onUpdate: NoAction, map: "fk_comunicados_autor")
 }
 
-model DeviceToken {
-  id         String   @id @default(uuid())
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token      String   @unique
-  deviceId   String
-  deviceName String?
-  osType     String? // 'android', 'ios'
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+model device_tokens {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id          Int
+  token               String    @unique
+  device_id           String    @db.VarChar(255)
+  device_name         String?   @db.VarChar(255)
+  os_type             String?   @db.VarChar(20)
+  is_active           Boolean?  @default(true)
+  fecha_registro      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_device_tokens_user")
 
-  @@unique([userId, deviceId])
-  @@index([userId])
+  @@unique([usuario_id, device_id], map: "unique_user_device")
 }
 
-model Order {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  description String?
-  status      String   @default("PENDIENTE") // PENDIENTE, COMPLETADO, CANCELADO
-  amount      Float?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([userId])
-  @@index([status])
+model orders {
+  id                  Int       @id @default(autoincrement())
+  usuario_id          Int
+  descripcion         String?
+  estado              String?   @default("pendiente") @db.VarChar(20)
+  monto               Decimal?  @db.Decimal(10, 2)
+  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_orders_user")
 }
 
-model Suggestion {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  area        String
-  type        String   // 'RECLAMO', 'SUGERENCIA'
-  title       String
-  description String
-  status      String   @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
-  files       String[] // Array of file URLs
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model user_sessions {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id         Int
+  refresh_token_hash String
+  device_id          String?   @db.VarChar(255)
+  device_name        String?   @db.VarChar(255)
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?
+  is_revoked         Boolean?  @default(false)
+  expires_at         DateTime  @db.Timestamp(6)
+  last_used_at       DateTime? @db.Timestamp(6)
+  fecha_creacion     DateTime? @default(now()) @db.Timestamp(6)
+  users              users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_sessions_user")
+
+  @@unique([usuario_id, device_id], map: "idx_user_sessions_device")
 }
 
-model Justification {
-  id          Int      @id @default(autoincrement())
-  userId      Int
-  user        User     @relation(fields: [userId], references: [id])
-  type        String   // 'INASISTENCIA', 'PERMISO'
-  startDate   DateTime
-  endDate     DateTime
-  reason      String
-  status      String   @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
-  files       String[] // Array of file URLs
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Comunicado {
-  id                Int      @id @default(autoincrement())
-  titulo            String   @db.VarChar(255)
-  contenido         String
-  imagen_url        String?  @db.VarChar(500)
-  fecha_publicacion DateTime @default(now())
-  autor_id          Int
-  autor             User     @relation(fields: [autor_id], references: [id])
-  activo            Boolean  @default(true)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-
-  @@index([autor_id])
-  @@index([activo])
+model users {
+  id             Int             @id @default(autoincrement())
+  nombre         String          @db.VarChar(150)
+  email          String          @unique @db.VarChar(150)
+  contrasena     String
+  area_id        Int?
+  rol            String?         @default("empleado") @db.VarChar(20)
+  estado         Boolean?        @default(true)
+  fecha_registro DateTime?       @default(now()) @db.Timestamp(6)
+  comunicados    comunicados[]
+  device_tokens  device_tokens[]
+  orders         orders[]
+  user_sessions  user_sessions[]
+  areas          areas?          @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
 }
