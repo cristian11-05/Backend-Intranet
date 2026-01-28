@@ -1,0 +1,7 @@
+﻿c:\Users\mrodriguez\Downloads\AquAnqa\app\src\androidTest\java\com\example\aquanqa\ExampleInstrumentedTest.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\main\java\com\example\aquanqa\MainActivity.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\main\java\com\example\aquanqa\ui\screens\NuevaEntradaScreen.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\main\java\com\example\aquanqa\ui\theme\Color.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\main\java\com\example\aquanqa\ui\theme\Theme.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\main\java\com\example\aquanqa\ui\theme\Type.kt
+c:\Users\mrodriguez\Downloads\AquAnqa\app\src\test\java\com\example\aquanqa\ExampleUnitTest.kt

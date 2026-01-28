@@ -28,32 +28,106 @@ export class UsersController {
         return res.send(csv);
     }
 
+
     @Post()
     @ApiOperation({ summary: 'Create a new user' })
     @ApiResponse({ status: 201, description: 'The user has been successfully created.' })
     @ApiResponse({ status: 400, description: 'Bad Request.' })
     async create(@Body() createUserDto: CreateUserDto) {
-        // Validation logic for default password and email if not provided
-        // Note: DTO validation happens before this method is called
-        if (!createUserDto.password && createUserDto.documento) {
-            createUserDto.password = createUserDto.documento;
+        console.log('Creating user with data:', createUserDto);
+        const { documento, contrasena, area_id, estado, ...userData } = createUserDto;
+
+        let finalContrasena = contrasena;
+        if (!finalContrasena && documento) {
+            finalContrasena = documento;
         }
 
-        if (!createUserDto.email && createUserDto.documento) {
-            createUserDto.email = `${createUserDto.documento}@sistema.com`;
+        let finalEmail = userData.email;
+        if (!finalEmail && documento) {
+            finalEmail = `${documento}@aquanqa.com`; // Changed to aquanqa.com
         }
 
-        // We need to cast to any or match the strict type if prisma expects strict types
-        // The service expects Prisma.UserCreateInput, which our DTO is compatible with (mostly)
-        // Ideally we map DTO to Entity/Input here.
-        return this.usersService.create(createUserDto as any);
+        if (!finalContrasena) {
+            throw new Error('La contraseña es requerida');
+        }
+
+        if (!finalEmail) {
+            throw new Error('El email es requerido');
+        }
+
+        // Map state string to boolean
+        const finalEstado = estado === 'Activo' ? true : (estado === 'Inactivo' ? false : true);
+
+        // Map area_id to number if present
+        const finalAreaId = area_id ? parseInt(area_id.toString()) : undefined;
+
+        const prismaData = {
+            ...userData,
+            email: finalEmail,
+            contrasena: finalContrasena,
+            estado: finalEstado,
+            area_id: finalAreaId,
+            documento: documento, // Ensure documento is included
+        };
+
+        console.log('Final Prisma payload for create:', JSON.stringify(prismaData));
+        try {
+            return await this.usersService.create(prismaData as any);
+        } catch (error) {
+            console.error('Error in UsersController.create:', error.message);
+            throw error;
+        }
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a user' })
     @ApiResponse({ status: 200, description: 'The user has been successfully updated.' })
     async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        return this.usersService.update(+id, updateUserDto);
+        console.log(`[Update] Received request for ID ${id}:`, JSON.stringify(updateUserDto));
+
+        try {
+            const { documento, area_id, estado, nombre, email, rol, contrasena } = updateUserDto as any;
+
+            const mappedData: any = {};
+            if (nombre !== undefined) mappedData.nombre = nombre;
+            if (email !== undefined) mappedData.email = email;
+            if (rol !== undefined) mappedData.rol = rol;
+            if (contrasena !== undefined) mappedData.contrasena = contrasena;
+            if (documento !== undefined) mappedData.documento = documento;
+
+            if (estado !== undefined) {
+                mappedData.estado = (estado === 'Activo');
+            }
+
+            if (area_id !== undefined) {
+                mappedData.area_id = area_id ? parseInt(area_id.toString()) : null;
+            }
+
+            console.log(`[Update] Final mapping for SQL of ID ${id}:`, JSON.stringify(mappedData));
+
+            // Use raw SQL to bypass Prisma Client field validation (since schema.prisma is out of sync)
+            const sql = `
+                UPDATE users 
+                SET nombre = $1, email = $2, rol = $3, estado = $4, documento = $5, area_id = $6
+                WHERE id = $7
+            `;
+            await (this.usersService as any).prisma.$executeRawUnsafe(
+                sql,
+                mappedData.nombre,
+                mappedData.email,
+                mappedData.rol,
+                mappedData.estado,
+                mappedData.documento,
+                mappedData.area_id,
+                +id
+            );
+
+            console.log(`[Update] SUCCESS (SQL) for ID ${id}`);
+            return { id: +id, ...mappedData };
+        } catch (error) {
+            console.error(`[Update] ERROR for ID ${id}:`, error.message);
+            throw error;
+        }
     }
 
     @Delete(':id')

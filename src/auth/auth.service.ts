@@ -13,22 +13,19 @@ export class AuthService {
     ) { }
 
     async signIn(identifier: string, pass: string, deviceData?: { deviceId?: string, deviceName?: string }): Promise<any> {
-        // Buscamos por email o documento
-        let user = await this.usersService.findOne({ email: identifier });
-        if (!user) {
-            user = await this.usersService.findOne({ documento: identifier });
-        }
+        // Buscamos por email (el documento no existe en la tabla users)
+        const user = await this.usersService.findOne({ email: identifier });
 
-        if (!user || user.password !== pass) {
+        if (!user || user.contrasena !== pass) {
             throw new UnauthorizedException('Credenciales incorrectas');
         }
 
-        const tokens = await this.getTokens(user.id, user.email, user.rol);
+        const tokens = await this.getTokens(user.id, user.email, user.rol || 'empleado');
 
         // Guardar sesión en la DB
         await this.updateRefreshToken(user.id, tokens.refresh_token, deviceData);
 
-        const { password, ...result } = user;
+        const { contrasena, ...result } = user;
         const response = {
             ...tokens,
             user: result,
@@ -45,11 +42,11 @@ export class AuthService {
         const user = await this.usersService.findOne({ id: userId });
         if (!user) throw new UnauthorizedException('Acceso denegado');
 
-        const session = await this.prisma.userSession.findFirst({
+        const session = await this.prisma.user_sessions.findFirst({
             where: {
-                userId,
-                isRevoked: false,
-                expiresAt: { gt: new Date() },
+                usuario_id: userId,
+                is_revoked: false,
+                expires_at: { gt: new Date() },
             },
         });
 
@@ -57,9 +54,9 @@ export class AuthService {
 
         // Validar hash
         const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-        if (session.refreshTokenHash !== hash) throw new UnauthorizedException('Token inválido');
+        if (session.refresh_token_hash !== hash) throw new UnauthorizedException('Token inválido');
 
-        const tokens = await this.getTokens(user.id, user.email, user.rol);
+        const tokens = await this.getTokens(user.id, user.email, user.rol || 'empleado');
         await this.updateRefreshToken(user.id, tokens.refresh_token);
 
         return tokens;
@@ -84,26 +81,26 @@ export class AuthService {
         expiresAt.setDate(expiresAt.getDate() + 7);
 
         // Para simplificar, manejamos una sesión por dispositivo o una sesión general
-        await this.prisma.userSession.upsert({
+        await this.prisma.user_sessions.upsert({
             where: {
-                userId_deviceId: {
-                    userId,
-                    deviceId: deviceData?.deviceId || 'default_web',
+                usuario_id_device_id: {
+                    usuario_id: userId,
+                    device_id: deviceData?.deviceId || 'default_web',
                 },
             },
             update: {
-                refreshTokenHash: hash,
-                expiresAt,
-                lastUsedAt: new Date(),
-                deviceName: deviceData?.deviceName,
-                isRevoked: false,
+                refresh_token_hash: hash,
+                expires_at: expiresAt,
+                last_used_at: new Date(),
+                device_name: deviceData?.deviceName,
+                is_revoked: false,
             },
             create: {
-                userId,
-                refreshTokenHash: hash,
-                expiresAt,
-                deviceId: deviceData?.deviceId || 'default_web',
-                deviceName: deviceData?.deviceName,
+                usuario_id: userId,
+                refresh_token_hash: hash,
+                expires_at: expiresAt,
+                device_id: deviceData?.deviceId || 'default_web',
+                device_name: deviceData?.deviceName,
             },
         });
     }

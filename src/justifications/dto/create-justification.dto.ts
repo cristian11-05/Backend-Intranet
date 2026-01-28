@@ -1,40 +1,44 @@
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-
-export enum JustificationType {
-    INASISTENCIA = 'INASISTENCIA',
-    PERMISO = 'PERMISO',
-}
 
 export class CreateJustificationDto {
-    @ApiProperty({ example: 1, description: 'ID del usuario' })
+    @ApiProperty()
     @IsNumber()
     @IsNotEmpty()
-    userId: number;
+    usuario_id: number;
 
-    @ApiProperty({ enum: JustificationType, example: 'INASISTENCIA', description: 'Tipo de justificación' })
-    @IsEnum(JustificationType)
-    @IsNotEmpty()
-    type: string;
+    @ApiProperty({ required: false })
+    @IsNumber()
+    @IsOptional()
+    area_id?: number;
 
-    @ApiProperty({ example: '2024-01-26', description: 'Fecha de inicio' })
-    @IsDateString()
-    @IsNotEmpty()
-    startDate: string;
-
-    @ApiProperty({ example: '2024-01-27', description: 'Fecha de fin' })
-    @IsDateString()
-    @IsNotEmpty()
-    endDate: string;
-
-    @ApiProperty({ example: 'Cita médica en el Seguro', description: 'Motivo de la justificación' })
+    @ApiProperty()
     @IsString()
     @IsNotEmpty()
-    reason: string;
+    titulo: string;
 
-    @ApiProperty({ example: ['https://...'], description: 'URLs de pruebas adjuntas', required: false })
-    @IsArray()
-    @IsString({ each: true })
+    @ApiProperty()
+    @IsString()
+    @IsNotEmpty()
+    descripcion: string;
+
+    @ApiProperty()
+    @IsDateString()
+    @IsNotEmpty()
+    fecha_evento: string;
+
+    @ApiProperty({ required: false })
+    @IsString()
     @IsOptional()
-    files?: string[];
+    hora_inicio?: string;
+
+    @ApiProperty({ required: false })
+    @IsString()
+    @IsOptional()
+    hora_fin?: string;
+
+    @ApiProperty({ required: false })
+    @IsString()
+    @IsOptional()
+    estado?: string;
 }

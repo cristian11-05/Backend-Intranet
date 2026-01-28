@@ -15,8 +15,8 @@ export class CreateUserDto {
     @ApiProperty({ example: 'password123', description: 'User password', required: false })
     @IsString()
     @MinLength(6)
-    @IsOptional() // Controller sets default if missing
-    password?: string;
+    @IsOptional()
+    contrasena?: string;
 
     @ApiProperty({ example: 'John Doe', description: 'User full name', required: false })
     @IsString()

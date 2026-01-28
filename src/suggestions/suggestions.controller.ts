@@ -1,46 +1,78 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException } from '@nestjs/common';
 import { SuggestionsService } from './suggestions.service';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateSuggestionDto } from './dto/create-suggestion.dto';
-import { UpdateSuggestionDto } from './dto/update-suggestion.dto';
+import { ApiTags, ApiOperation, ApiResponse, OmitType } from '@nestjs/swagger';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { JwtService } from '@nestjs/jwt';
+
+class CreateMobileSuggestionDto extends OmitType(CreateSuggestionDto, ['usuario_id'] as const) { }
 
 @ApiTags('Suggestions')
 @Controller('suggestions')
 export class SuggestionsController {
-    constructor(private readonly suggestionsService: SuggestionsService) { }
+    constructor(
+        private readonly suggestionsService: SuggestionsService,
+        private readonly jwtService: JwtService,
+    ) { }
 
     @Post()
-    @ApiOperation({ summary: 'Create a new suggestion or claim' })
-    @ApiResponse({ status: 201, description: 'The suggestion has been successfully created.' })
+    @ApiOperation({ summary: 'Create a new suggestion' })
+    @ApiResponse({ status: 201, description: 'Created' })
     create(@Body() createSuggestionDto: CreateSuggestionDto) {
-        return this.suggestionsService.create(createSuggestionDto as any);
+        return this.suggestionsService.create(createSuggestionDto);
+    }
+
+    // Endpoint Móvil para Crear
+    @Post('mobile')
+    @ApiOperation({ summary: 'Create a new suggestion (Mobile - Auth Token required)' })
+    async createMobile(@Headers('authorization') auth: string, @Body() body: any) {
+        if (!auth) throw new UnauthorizedException('Token required');
+        const token = auth.replace('Bearer ', '');
+        try {
+            const payload = this.jwtService.decode(token);
+            if (!payload || !payload.sub) throw new UnauthorizedException('Invalid token');
+
+            // Adaptar claves Inglés -> Español para compatibilidad
+            const type = body.tipo || body.type;
+            const title = body.titulo || body.title;
+            const desc = body.descripcion || body.description;
+            const areaId = body.area_id || body.areaId;
+
+            if (!type || !title || !desc) {
+                throw new UnauthorizedException('Faltan campos (tipo/type, titulo/title, descripcion/description)');
+            }
+
+            // Normalización para Web Dashboard
+            let finalType = type;
+            if (type === 'SUGERENCIA' || type === 'Sugerencia') finalType = 'Te escuchamos';
+            if (type === 'REPORTE' || type === 'Reporte') finalType = 'Reporte de situación';
+            if (type === 'Queja') finalType = 'Te escuchamos';
+
+            const fullDto: CreateSuggestionDto = {
+                tipo: finalType,
+                titulo: title,
+                descripcion: desc,
+                usuario_id: payload.sub,
+                area_id: areaId // Optional
+            };
+            return await this.suggestionsService.create(fullDto);
+        } catch (e) {
+            console.error('Mobile Create Error:', e);
+            throw new UnauthorizedException('Error procesando solicitud: ' + e.message);
+        }
     }
 
     @Get()
     @ApiOperation({ summary: 'Get all suggestions' })
-    @ApiResponse({ status: 200, description: 'Return all suggestions.' })
-    findAll() {
-        return this.suggestionsService.findAll();
+    findAll(@Query() paginationDto: PaginationDto) {
+        return this.suggestionsService.findAll(paginationDto.page, paginationDto.limit);
     }
 
-    @Get(':id')
-    @ApiOperation({ summary: 'Get a suggestion by id' })
-    @ApiResponse({ status: 200, description: 'Return the suggestion.' })
-    findOne(@Param('id') id: string) {
-        return this.suggestionsService.findOne(+id);
-    }
-
-    @Patch(':id')
-    @ApiOperation({ summary: 'Update a suggestion' })
-    @ApiResponse({ status: 200, description: 'The suggestion has been successfully updated.' })
-    update(@Param('id') id: string, @Body() updateSuggestionDto: UpdateSuggestionDto) {
-        return this.suggestionsService.update(+id, updateSuggestionDto as any);
-    }
-
-    @Delete(':id')
-    @ApiOperation({ summary: 'Delete a suggestion' })
-    @ApiResponse({ status: 200, description: 'The suggestion has been successfully deleted.' })
-    remove(@Param('id') id: string) {
-        return this.suggestionsService.remove(+id);
+    // Endpoint Móvil para Listar
+    @Get('mobile')
+    @ApiOperation({ summary: 'Get all suggestions (Mobile - Simple Array)' })
+    async findAllMobile(@Query() paginationDto: PaginationDto) {
+        const result = await this.suggestionsService.findAll(paginationDto.page, 100); // Traer más items para móvil
+        return result.data; // Retorna directo el array
     }
 }

@@ -25,7 +25,7 @@ export class ComunicadosService {
             delete data.imagen;
         }
 
-        const comunicado = await this.prisma.comunicado.create({
+        const comunicado = await this.prisma.comunicados.create({
             data: {
                 titulo: data.titulo,
                 contenido: data.contenido,
@@ -44,17 +44,17 @@ export class ComunicadosService {
     }
 
     async findAll() {
-        return this.prisma.comunicado.findMany({
+        return this.prisma.comunicados.findMany({
             where: { activo: true },
-            include: { autor: true },
+            include: { users: true },
             orderBy: { fecha_publicacion: 'desc' }
         });
     }
 
     async findOne(id: number) {
-        return this.prisma.comunicado.findUnique({
+        return this.prisma.comunicados.findUnique({
             where: { id },
-            include: { autor: true }
+            include: { users: true }
         });
     }
 
@@ -64,7 +64,7 @@ export class ComunicadosService {
             delete data.imagen;
         }
 
-        return this.prisma.comunicado.update({
+        return this.prisma.comunicados.update({
             where: { id },
             data: {
                 titulo: data.titulo,
@@ -72,12 +72,12 @@ export class ComunicadosService {
                 imagen_url: data.imagen_url,
                 activo: data.activo
             },
-            include: { autor: true }
+            include: { users: true }
         });
     }
 
     async remove(id: number) {
-        return this.prisma.comunicado.update({
+        return this.prisma.comunicados.update({
             where: { id },
             data: { activo: false }
         });

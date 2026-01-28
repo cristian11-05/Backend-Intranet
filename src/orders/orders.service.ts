@@ -1,19 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { orders as Order } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
     constructor(private readonly prisma: PrismaService) { }
 
     async create(userId: number, data: { description: string, amount?: number }) {
-        return this.prisma.order.create({
+        return this.prisma.orders.create({
             data: {
-                userId,
-                description: data.description,
-                amount: data.amount,
+                usuario_id: userId,
+                descripcion: data.description,
+                monto: data.amount,
             },
             include: {
-                user: {
+                users: {
                     select: {
                         nombre: true,
                         email: true,
@@ -26,9 +27,9 @@ export class OrdersService {
     async findAll(page: number = 1, limit: number = 10) {
         const skip = (page - 1) * limit;
         const [data, total] = await Promise.all([
-            this.prisma.order.findMany({
+            this.prisma.orders.findMany({
                 include: {
-                    user: {
+                    users: {
                         select: {
                             nombre: true,
                             email: true,
@@ -38,10 +39,10 @@ export class OrdersService {
                 skip,
                 take: limit,
                 orderBy: {
-                    createdAt: 'desc'
+                    fecha_creacion: 'desc'
                 }
             }),
-            this.prisma.order.count(),
+            this.prisma.orders.count(),
         ]);
 
         return {
@@ -56,9 +57,9 @@ export class OrdersService {
     }
 
     async updateStatus(id: number, status: string) {
-        return this.prisma.order.update({
+        return this.prisma.orders.update({
             where: { id },
-            data: { status },
+            data: { estado: status },
         });
     }
 }

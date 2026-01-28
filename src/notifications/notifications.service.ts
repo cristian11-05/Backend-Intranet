@@ -7,8 +7,8 @@ export class NotificationsService {
 
     async sendPushNotification(userId: number, title: string, body: string) {
         // 1. Get device tokens for the user
-        const tokens = await this.prisma.deviceToken.findMany({
-            where: { userId, isActive: true },
+        const tokens = await this.prisma.device_tokens.findMany({
+            where: { usuario_id: userId, is_active: true },
         });
 
         if (tokens.length === 0) {
@@ -19,7 +19,7 @@ export class NotificationsService {
         // 2. Mock sending notification
         // In a real app, use Firebase Admin (FCM) or OneSignal here.
         tokens.forEach(t => {
-            console.log(`[Notification] Sending to device ${t.deviceName} (${t.token}):`);
+            console.log(`[Notification] Sending to device ${t.device_name} (${t.token}):`);
             console.log(`   Title: ${title}`);
             console.log(`   Body: ${body}`);
         });

@@ -1,52 +1,60 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
-import { NotificationsService } from '../notifications/notifications.service';
+import { CreateSuggestionDto } from './dto/create-suggestion.dto';
 
 @Injectable()
 export class SuggestionsService {
-    constructor(
-        private prisma: PrismaService,
-        private notificationsService: NotificationsService
-    ) { }
+    constructor(private readonly prisma: PrismaService) { }
 
-    async create(data: Prisma.SuggestionCreateInput) {
-        return this.prisma.suggestion.create({
+    async create(createSuggestionDto: CreateSuggestionDto) {
+        const { usuario_id, area_id, tipo, titulo, descripcion } = createSuggestionDto;
+
+        // Using raw SQL to avoid Prisma Client sync issues with new tables
+        const sql = `
+      INSERT INTO suggestions (usuario_id, area_id, tipo, titulo, descripcion)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+
+        const result = await (this.prisma as any).$queryRawUnsafe(
+            sql,
+            usuario_id,
+            area_id,
+            tipo,
+            titulo,
+            descripcion
+        );
+
+        return result[0];
+    }
+
+    async findAll(page: number = 1, limit: number = 10) {
+        const skip = (page - 1) * limit;
+
+        const dataSql = `
+      SELECT s.*, u.nombre as usuario_nombre, a.nombre as area_nombre
+      FROM suggestions s
+      LEFT JOIN users u ON s.usuario_id = u.id
+      LEFT JOIN areas a ON s.area_id = a.id
+      ORDER BY s.fecha_creacion DESC
+      LIMIT $1 OFFSET $2
+    `;
+
+        const countSql = `SELECT COUNT(*) FROM suggestions`;
+
+        const [data, [{ count }]] = await Promise.all([
+            (this.prisma as any).$queryRawUnsafe(dataSql, limit, skip),
+            (this.prisma as any).$queryRawUnsafe(countSql),
+        ]);
+
+        return {
             data,
-        });
-    }
-
-    async findAll() {
-        return this.prisma.suggestion.findMany({
-            include: { user: true },
-            orderBy: { createdAt: 'desc' }
-        });
-    }
-
-    async findOne(id: number) {
-        return this.prisma.suggestion.findUnique({
-            where: { id },
-            include: { user: true }
-        });
-    }
-
-    async update(id: number, data: Prisma.SuggestionUpdateInput) {
-        const suggestion = await this.prisma.suggestion.update({
-            where: { id },
-            data,
-            include: { user: true }
-        });
-
-        if (data.status === 'RECHAZADO' || data.status === 'APROBADO') {
-            await this.notificationsService.notifyStatusChange(suggestion.userId, suggestion.type, data.status as string);
-        }
-
-        return suggestion;
-    }
-
-    async remove(id: number) {
-        return this.prisma.suggestion.delete({
-            where: { id },
-        });
+            meta: {
+                total: parseInt(count),
+                page,
+                limit,
+                totalPages: Math.ceil(parseInt(count) / limit),
+            }
+        };
     }
 }
