@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException, Patch, Param } from '@nestjs/common';
 import { SuggestionsService } from './suggestions.service';
 import { CreateSuggestionDto } from './dto/create-suggestion.dto';
+import { UpdateSuggestionStatusDto } from './dto/update-suggestion-status.dto';
 import { ApiTags, ApiOperation, ApiResponse, OmitType } from '@nestjs/swagger';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +15,30 @@ export class SuggestionsController {
         private readonly suggestionsService: SuggestionsService,
         private readonly jwtService: JwtService,
     ) { }
+
+    @Patch(':id/status')
+    @ApiOperation({ summary: 'Update suggestion status (only Pendiente -> Revisada)' })
+    async updateStatus(
+        @Param('id') id: string,
+        @Body() updateDto: UpdateSuggestionStatusDto,
+        @Headers('authorization') auth: string
+    ) {
+        let adminId = 1; // Default fallback
+
+        if (auth) {
+            try {
+                const token = auth.replace('Bearer ', '');
+                const payload = this.jwtService.decode(token);
+                if (payload && payload.sub) {
+                    adminId = payload.sub;
+                }
+            } catch (e) {
+                console.error('Error decoding token for audit:', e);
+            }
+        }
+
+        return this.suggestionsService.updateStatus(+id, updateDto.estado, adminId, updateDto.comentario);
+    }
 
     @Post()
     @ApiOperation({ summary: 'Create a new suggestion' })

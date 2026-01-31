@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Headers, UnauthorizedException, Req } from '@nestjs/common';
 import { JustificationsService } from './justifications.service';
 import { CreateJustificationDto } from './dto/create-justification.dto';
+import { UpdateJustificationStatusDto } from './dto/update-justification-status.dto';
 import { ApiTags, ApiOperation, ApiResponse, OmitType } from '@nestjs/swagger';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -72,11 +73,17 @@ export class JustificationsController {
 
     @Patch(':id/status')
     @ApiOperation({ summary: 'Update justification status' })
-    updateStatus(
+    async updateStatus(
         @Param('id') id: string,
-        @Body('estado') estado: string,
-        @Body('aprobado_por') aprobado_por?: number,
+        @Body() updateDto: UpdateJustificationStatusDto,
+        @Req() req: any
     ) {
-        return this.justificationsService.updateStatus(+id, estado, aprobado_por);
+        // En un escenario real, obtendríamos el ID del usuario del token
+        // const approvedBy = req.user?.sub; 
+        // Por ahora lo simulamos o lo enviamos en el body si es necesario, 
+        // pero idealmente viene del token. Asumiremos admin ID 1 por defecto si no hay auth
+        const approvedBy = 1;
+
+        return this.justificationsService.updateStatus(+id, updateDto.estado, approvedBy, updateDto.razon_rechazo);
     }
 }

@@ -83,4 +83,42 @@ model users {
   orders         orders[]
   user_sessions  user_sessions[]
   areas          areas?          @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
+  suggestions    suggestions[]
+  suggestions_reviewed suggestions[] @relation("SuggestionReviewer")
+  justifications justifications[]
+  justifications_approved justifications[] @relation("JustificationApprover")
+}
+
+model suggestions {
+  id                  Int       @id @default(autoincrement())
+  usuario_id          Int
+  area_id             Int?
+  tipo                String?   @db.VarChar(100)
+  titulo              String    @db.VarChar(255)
+  descripcion         String?   @db.Text
+  estado              String?   @default("pendiente") @db.VarChar(20) // pendiente, revisada
+  comentario_admin    String?   @db.Text
+  revisado_por        Int?
+  fecha_revision      DateTime? @db.Timestamp(6)
+  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_suggestions_user")
+  reviewer            users?    @relation("SuggestionReviewer", fields: [revisado_por], references: [id], onDelete: SetNull, onUpdate: NoAction)
+}
+
+model justifications {
+  id                  Int       @id @default(autoincrement())
+  usuario_id          Int
+  titulo              String    @db.VarChar(255)
+  contenido           String
+  fecha_inicio        DateTime  @db.Timestamp(6)
+  fecha_fin           DateTime  @db.Timestamp(6)
+  estado              String?   @default("pendiente") @db.VarChar(20) // pendiente, en_proceso, aprobado, rechazado
+  razon_rechazo       String?   // Obligatorio si es rechazado
+  aprobado_por        Int?      // ID del admin que aprobó/rechazó
+  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_justifications_user")
+  approver            users?    @relation("JustificationApprover", fields: [aprobado_por], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_justifications_approver")
 }

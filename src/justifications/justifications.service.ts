@@ -59,14 +59,14 @@ export class JustificationsService {
         };
     }
 
-    async updateStatus(id: number, status: string, approvedBy?: number) {
+    async updateStatus(id: number, status: string, approvedBy?: number, rejectionReason?: string) {
         const sql = `
-      UPDATE justifications 
-      SET estado = $1, aprobado_por = $2, fecha_actualizacion = CURRENT_TIMESTAMP
-      WHERE id = $3
-      RETURNING *
-    `;
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, status, approvedBy, id);
+            UPDATE justifications 
+            SET estado = $1, aprobado_por = $2, razon_rechazo = $3, fecha_actualizacion = NOW()
+            WHERE id = $4
+            RETURNING *
+        `;
+        const result = await (this.prisma as any).$queryRawUnsafe(sql, status, approvedBy || null, rejectionReason || null, id);
         return result[0];
     }
 }
