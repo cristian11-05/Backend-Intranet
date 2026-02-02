@@ -10,26 +10,49 @@ export class SuggestionsService {
         private readonly notificationsService: NotificationsService
     ) { }
 
-    async create(createSuggestionDto: CreateSuggestionDto) {
+    async create(createSuggestionDto: CreateSuggestionDto, attachments?: { ruta_archivo: string, tipo_archivo: string }[]) {
         const { usuario_id, area_id, tipo, titulo, descripcion } = createSuggestionDto;
 
-        // Using raw SQL to avoid Prisma Client sync issues with new tables
         const sql = `
       INSERT INTO suggestions (usuario_id, area_id, tipo, titulo, descripcion, estado)
       VALUES ($1, $2, $3, $4, $5, 'pendiente')
       RETURNING *
     `;
 
-        const result = await (this.prisma as any).$queryRawUnsafe(
-            sql,
-            usuario_id,
-            area_id,
-            tipo,
-            titulo,
-            descripcion
-        );
+        const result = await (this.prisma as any).$queryRawUnsafe(sql, usuario_id, area_id, tipo, titulo, descripcion);
+        const suggestion = result[0];
 
-        return result[0];
+        if (attachments && attachments.length > 0) {
+            for (const attachment of attachments) {
+                const attachSql = `INSERT INTO suggestion_attachments (suggestion_id, ruta_archivo, tipo_archivo) VALUES ($1, $2, $3)`;
+                await (this.prisma as any).$queryRawUnsafe(attachSql, suggestion.id, attachment.ruta_archivo, attachment.tipo_archivo);
+            }
+        }
+
+        // Fetch user and area names for consistency
+        const detailedSql = `
+            SELECT s.*, u.nombre as usuario_nombre, u.email as usuario_email, a.nombre as area_nombre
+            FROM suggestions s
+            LEFT JOIN users u ON s.usuario_id = u.id
+            LEFT JOIN areas a ON s.area_id = a.id
+            WHERE s.id = $1
+        `;
+        const detailedResult = await (this.prisma as any).$queryRawUnsafe(detailedSql, suggestion.id);
+        const suggestionDetailed = detailedResult[0];
+
+        const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM suggestion_attachments WHERE suggestion_id = $1`;
+        const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, suggestion.id);
+
+        return {
+            ...suggestionDetailed,
+            user: {
+                nombre: suggestionDetailed.usuario_nombre,
+                email: suggestionDetailed.usuario_email
+            },
+            revisado_por_user: null, // New suggestion
+            adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
+            adjuntos: adjuntos || []
+        };
     }
 
     async findAll(page: number = 1, limit: number = 10) {
@@ -53,15 +76,24 @@ export class SuggestionsService {
             (this.prisma as any).$queryRawUnsafe(countSql),
         ]);
 
-        const data = (rawResults as any[]).map(item => ({
-            ...item,
-            user: {
-                nombre: item.usuario_nombre,
-                email: item.usuario_email
-            },
-            revisado_por_user: item.revisado_por_nombre ? {
-                nombre: item.revisado_por_nombre
-            } : null
+        const data = await Promise.all((rawResults as any[]).map(async item => {
+            const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM suggestion_attachments WHERE suggestion_id = $1`;
+            const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, item.id);
+
+            return {
+                ...item,
+                usuario_nombre: item.usuario_nombre, // Explícito para el front
+                area_nombre: item.area_nombre, // Explícito para el front
+                user: {
+                    nombre: item.usuario_nombre,
+                    email: item.usuario_email
+                },
+                revisado_por_user: item.revisado_por_nombre ? {
+                    nombre: item.revisado_por_nombre
+                } : null,
+                adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
+                adjuntos: adjuntos || []
+            };
         }));
 
         return {
@@ -76,22 +108,20 @@ export class SuggestionsService {
     }
 
     async updateStatus(id: number, state: string, adminId: number, comment?: string) {
+        let normalizedState = state.toLowerCase();
+        if (normalizedState === 'revisada') normalizedState = 'revisado';
+
         const sql = `
             UPDATE suggestions 
-            SET estado = $1, 
-                comentario_admin = $2, 
-                revisado_por = $3, 
-                fecha_revision = NOW(), 
-                fecha_actualizacion = NOW()
+            SET estado = $1, comentario_admin = $2, revisado_por = $3, fecha_revision = NOW(), fecha_actualizacion = NOW()
             WHERE id = $4
             RETURNING *
         `;
 
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, state, adminId, comment || null, id);
-
+        const result = await (this.prisma as any).$queryRawUnsafe(sql, normalizedState, comment || null, adminId, id);
         const suggestion = result[0];
 
-        if (suggestion && state === 'revisada') {
+        if (suggestion && normalizedState === 'revisado') {
             await this.notificationsService.sendPushNotification(
                 suggestion.usuario_id,
                 'Sugerencia Revisada',
@@ -99,6 +129,33 @@ export class SuggestionsService {
             );
         }
 
-        return suggestion;
+        // Fetch detailed info and attachments
+        const detailedSql = `
+            SELECT s.*, u.nombre as usuario_nombre, u.email as usuario_email, a.nombre as area_nombre,
+                   admin.nombre as revisado_por_nombre
+            FROM suggestions s
+            LEFT JOIN users u ON s.usuario_id = u.id
+            LEFT JOIN areas a ON s.area_id = a.id
+            LEFT JOIN users admin ON s.revisado_por = admin.id
+            WHERE s.id = $1
+        `;
+        const detailedResult = await (this.prisma as any).$queryRawUnsafe(detailedSql, id);
+        const suggestionDetailed = detailedResult[0];
+
+        const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM suggestion_attachments WHERE suggestion_id = $1`;
+        const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, id);
+
+        return {
+            ...suggestionDetailed,
+            user: {
+                nombre: suggestionDetailed.usuario_nombre,
+                email: suggestionDetailed.usuario_email
+            },
+            revisado_por_user: suggestionDetailed.revisado_por_nombre ? {
+                nombre: suggestionDetailed.revisado_por_nombre
+            } : null,
+            adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
+            adjuntos: adjuntos || []
+        };
     }
 }

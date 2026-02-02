@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException, Patch, Param } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Headers, UnauthorizedException, Patch, Param, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { SuggestionsService } from './suggestions.service';
 import { CreateSuggestionDto } from './dto/create-suggestion.dto';
 import { UpdateSuggestionStatusDto } from './dto/update-suggestion-status.dto';
-import { ApiTags, ApiOperation, ApiResponse, OmitType } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, OmitType, ApiConsumes } from '@nestjs/swagger';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
 
 class CreateMobileSuggestionDto extends OmitType(CreateSuggestionDto, ['usuario_id'] as const) { }
 
@@ -47,10 +50,23 @@ export class SuggestionsController {
         return this.suggestionsService.create(createSuggestionDto);
     }
 
-    // Endpoint Móvil para Crear
+    // Endpoint Móvil para Crear con Multi-imágenes
     @Post('mobile')
+    @UseInterceptors(FilesInterceptor('files', 5, {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: editFileName
+        }),
+        fileFilter: imageFileFilter,
+        limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
+    }))
+    @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create a new suggestion (Mobile - Auth Token required)' })
-    async createMobile(@Headers('authorization') auth: string, @Body() body: any) {
+    async createMobile(
+        @Headers('authorization') auth: string,
+        @Body() body: any,
+        @UploadedFiles() files: Express.Multer.File[]
+    ) {
         if (!auth) throw new UnauthorizedException('Token required');
         const token = auth.replace('Bearer ', '');
         try {
@@ -80,7 +96,13 @@ export class SuggestionsController {
                 usuario_id: payload.sub,
                 area_id: areaId // Optional
             };
-            return await this.suggestionsService.create(fullDto);
+
+            const attachments = files?.map(f => ({
+                ruta_archivo: `/uploads/${f.filename}`,
+                tipo_archivo: f.mimetype
+            })) || [];
+
+            return await this.suggestionsService.create(fullDto, attachments);
         } catch (e) {
             console.error('Mobile Create Error:', e);
             throw new UnauthorizedException('Error procesando solicitud: ' + e.message);

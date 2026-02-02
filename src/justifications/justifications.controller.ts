@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Headers, UnauthorizedException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Query, Headers, UnauthorizedException, Req, UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { JustificationsService } from './justifications.service';
 import { CreateJustificationDto } from './dto/create-justification.dto';
 import { UpdateJustificationStatusDto } from './dto/update-justification-status.dto';
-import { ApiTags, ApiOperation, ApiResponse, OmitType } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, OmitType, ApiConsumes } from '@nestjs/swagger';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
 
 class CreateMobileJustificationDto extends OmitType(CreateJustificationDto, ['usuario_id'] as const) { }
 
@@ -23,10 +26,23 @@ export class JustificationsController {
         return this.justificationsService.create(createJustificationDto);
     }
 
-    // Endpoint Móvil para Crear
+    // Endpoint Móvil para Crear con Multi-imágenes
     @Post('mobile')
+    @UseInterceptors(FilesInterceptor('files', 5, {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: editFileName
+        }),
+        fileFilter: imageFileFilter,
+        limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
+    }))
+    @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create a new justification (Mobile - Auth Token required)' })
-    async createMobile(@Headers('authorization') auth: string, @Body() body: any) {
+    async createMobile(
+        @Headers('authorization') auth: string,
+        @Body() body: any,
+        @UploadedFiles() files: Express.Multer.File[]
+    ) {
         if (!auth) throw new UnauthorizedException('Token required');
         const token = auth.replace('Bearer ', '');
         try {
@@ -48,9 +64,15 @@ export class JustificationsController {
                 area_id: areaId,
                 hora_inicio: body.hora_inicio || body.startTime,
                 hora_fin: body.hora_fin || body.endTime,
-                estado: 'Pendiente' // Default para Web Dashboard
+                estado: 'pendiente' // Default para Web Dashboard
             };
-            return await this.justificationsService.create(fullDto);
+
+            const attachments = files?.map(f => ({
+                ruta_archivo: `/uploads/${f.filename}`,
+                tipo_archivo: f.mimetype
+            })) || [];
+
+            return await this.justificationsService.create(fullDto, attachments);
         } catch (e) {
             console.error('Justification Mobile Error:', e);
             throw new UnauthorizedException('Error procesando solicitud: ' + e.message);
@@ -76,14 +98,22 @@ export class JustificationsController {
     async updateStatus(
         @Param('id') id: string,
         @Body() updateDto: UpdateJustificationStatusDto,
-        @Req() req: any
+        @Headers('authorization') auth: string
     ) {
-        // En un escenario real, obtendríamos el ID del usuario del token
-        // const approvedBy = req.user?.sub; 
-        // Por ahora lo simulamos o lo enviamos en el body si es necesario, 
-        // pero idealmente viene del token. Asumiremos admin ID 1 por defecto si no hay auth
-        const approvedBy = 1;
+        let adminId = 1; // Default fallback
 
-        return this.justificationsService.updateStatus(+id, updateDto.estado, approvedBy, updateDto.razon_rechazo);
+        if (auth) {
+            try {
+                const token = auth.replace('Bearer ', '');
+                const payload = this.jwtService.decode(token);
+                if (payload && payload.sub) {
+                    adminId = payload.sub;
+                }
+            } catch (e) {
+                console.error('Error decoding token for justification audit:', e);
+            }
+        }
+
+        return this.justificationsService.updateStatus(+id, updateDto.estado, adminId, updateDto.razon_rechazo);
     }
 }

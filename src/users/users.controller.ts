@@ -35,16 +35,18 @@ export class UsersController {
     @ApiResponse({ status: 400, description: 'Bad Request.' })
     async create(@Body() createUserDto: CreateUserDto) {
         console.log('Creating user with data:', createUserDto);
-        const { documento, contrasena, area_id, estado, ...userData } = createUserDto;
+        const { documento, dni, contrasena, area_id, estado, ...userData } = createUserDto as any;
+
+        const finalDocumento = documento || dni;
 
         let finalContrasena = contrasena;
-        if (!finalContrasena && documento) {
-            finalContrasena = documento;
+        if (!finalContrasena && finalDocumento) {
+            finalContrasena = finalDocumento;
         }
 
         let finalEmail = userData.email;
-        if (!finalEmail && documento) {
-            finalEmail = `${documento}@aquanqa.com`; // Changed to aquanqa.com
+        if (!finalEmail && finalDocumento) {
+            finalEmail = `${finalDocumento}@aquanqa.com`;
         }
 
         if (!finalContrasena) {
@@ -67,7 +69,7 @@ export class UsersController {
             contrasena: finalContrasena,
             estado: finalEstado,
             area_id: finalAreaId,
-            documento: documento, // Ensure documento is included
+            documento: finalDocumento, // Ensure finalDocumento is included
         };
 
         console.log('Final Prisma payload for create:', JSON.stringify(prismaData));
@@ -86,46 +88,63 @@ export class UsersController {
         console.log(`[Update] Received request for ID ${id}:`, JSON.stringify(updateUserDto));
 
         try {
-            const { documento, area_id, estado, nombre, email, rol, contrasena } = updateUserDto as any;
+            const { documento, dni, area_id, areaId, estado, status, nombre, email, rol, tipo_contrato, contrasena, password } = updateUserDto as any;
+
+            const finalDocumento = documento || dni;
+            const finalRol = rol || tipo_contrato;
+            const finalEstadoRaw = estado !== undefined ? estado : status;
+            const finalAreaIdRaw = area_id !== undefined ? area_id : areaId;
+            const finalContrasena = contrasena || password;
 
             const mappedData: any = {};
             if (nombre !== undefined) mappedData.nombre = nombre;
             if (email !== undefined) mappedData.email = email;
-            if (rol !== undefined) mappedData.rol = rol;
-            if (contrasena !== undefined) mappedData.contrasena = contrasena;
-            if (documento !== undefined) mappedData.documento = documento;
+            if (finalRol !== undefined) mappedData.rol = finalRol;
+            if (finalContrasena !== undefined) mappedData.contrasena = finalContrasena;
+            if (finalDocumento !== undefined) mappedData.documento = finalDocumento;
 
-            if (estado !== undefined) {
-                mappedData.estado = (estado === 'Activo');
+            if (finalEstadoRaw !== undefined) {
+                mappedData.estado = (finalEstadoRaw === 'Activo' || finalEstadoRaw === true);
             }
 
-            if (area_id !== undefined) {
-                mappedData.area_id = area_id ? parseInt(area_id.toString()) : null;
+            if (finalAreaIdRaw !== undefined) {
+                mappedData.area_id = parseInt(finalAreaIdRaw.toString());
             }
 
-            console.log(`[Update] Final mapping for SQL of ID ${id}:`, JSON.stringify(mappedData));
+            console.log(`[Update] Final mapping for ID ${id}:`, JSON.stringify(mappedData));
 
-            // Use raw SQL to bypass Prisma Client field validation (since schema.prisma is out of sync)
-            const sql = `
-                UPDATE users 
-                SET nombre = $1, email = $2, rol = $3, estado = $4, documento = $5, area_id = $6
-                WHERE id = $7
-            `;
-            await (this.usersService as any).prisma.$executeRawUnsafe(
-                sql,
-                mappedData.nombre,
-                mappedData.email,
-                mappedData.rol,
-                mappedData.estado,
-                mappedData.documento,
-                mappedData.area_id,
-                +id
-            );
+            // Try standard Prisma first (best case)
+            try {
+                const updatedUser = await this.usersService.update(+id, mappedData);
+                console.log(`[Update] SUCCESS (Prisma) for ID ${id}`);
+                return updatedUser;
+            } catch (prismaError) {
+                console.warn(`[Update] Prisma update failed for ID ${id}, falling back to dynamic SQL:`, prismaError.message);
 
-            console.log(`[Update] SUCCESS (SQL) for ID ${id}`);
-            return { id: +id, ...mappedData };
+                const fields: string[] = [];
+                const values: any[] = [];
+                let placeholdersCount = 1;
+
+                if (mappedData.nombre !== undefined) { fields.push(`nombre = $${placeholdersCount++}`); values.push(mappedData.nombre); }
+                if (mappedData.email !== undefined) { fields.push(`email = $${placeholdersCount++}`); values.push(mappedData.email); }
+                if (mappedData.rol !== undefined) { fields.push(`rol = $${placeholdersCount++}`); values.push(mappedData.rol); }
+                if (mappedData.estado !== undefined) { fields.push(`estado = $${placeholdersCount++}`); values.push(mappedData.estado); }
+                if (mappedData.documento !== undefined) { fields.push(`documento = $${placeholdersCount++}`); values.push(mappedData.documento); }
+                if (mappedData.area_id !== undefined) { fields.push(`area_id = $${placeholdersCount++}`); values.push(mappedData.area_id); }
+
+                if (fields.length === 0) {
+                    return this.usersService.findOne({ id: +id });
+                }
+
+                values.push(+id);
+                const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = $${placeholdersCount}`;
+                await (this.usersService as any).prisma.$executeRawUnsafe(sql, ...values);
+
+                console.log(`[Update] SUCCESS (Dynamic SQL) for ID ${id}`);
+                return this.usersService.findOne({ id: +id });
+            }
         } catch (error) {
-            console.error(`[Update] ERROR for ID ${id}:`, error.message);
+            console.error(`[Update] CRITICAL ERROR for ID ${id}:`, error.message);
             throw error;
         }
     }

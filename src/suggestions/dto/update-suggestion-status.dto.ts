@@ -4,6 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export enum SuggestionStatus {
     PENDIENTE = 'pendiente',
     REVISADA = 'revisada',
+    REVISADO = 'revisado',
 }
 
 export class UpdateSuggestionStatusDto {

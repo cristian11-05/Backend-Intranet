@@ -18,6 +18,11 @@ export class CreateUserDto {
     @IsOptional()
     contrasena?: string;
 
+    @ApiProperty({ required: false })
+    @IsString()
+    @IsOptional()
+    dni?: string;
+
     @ApiProperty({ example: 'John Doe', description: 'User full name', required: false })
     @IsString()
     @IsOptional()
@@ -28,13 +33,32 @@ export class CreateUserDto {
     @IsOptional()
     rol?: string;
 
-    @ApiProperty({ example: 'IT', description: 'Area ID', required: false })
+    @ApiProperty({ required: false })
     @IsString()
+    @IsOptional()
+    tipo_contrato?: string;
+
+    @ApiProperty({ required: false })
     @IsOptional()
     area_id?: string;
 
+    @ApiProperty({ required: false })
+    @IsOptional()
+    areaId?: string;
+
     @ApiProperty({ example: 'Activo', description: 'User status', default: 'Activo' })
-    @IsString()
     @IsOptional()
     estado?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    status?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    id?: number;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    password?: string;
 }

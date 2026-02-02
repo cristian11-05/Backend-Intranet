@@ -77,6 +77,7 @@ model users {
   area_id        Int?
   rol            String?         @default("empleado") @db.VarChar(20)
   estado         Boolean?        @default(true)
+  documento      String?         @db.VarChar(50)
   fecha_registro DateTime?       @default(now()) @db.Timestamp(6)
   comunicados    comunicados[]
   device_tokens  device_tokens[]
@@ -105,15 +106,27 @@ model suggestions {
   
   users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_suggestions_user")
   reviewer            users?    @relation("SuggestionReviewer", fields: [revisado_por], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  adjuntos            suggestion_attachments[]
+}
+
+model suggestion_attachments {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  suggestion_id  Int
+  ruta_archivo   String
+  tipo_archivo   String?     @db.VarChar(50)
+  fecha_registro DateTime?   @default(now()) @db.Timestamp(6)
+  suggestion     suggestions @relation(fields: [suggestion_id], references: [id], onDelete: Cascade)
 }
 
 model justifications {
   id                  Int       @id @default(autoincrement())
   usuario_id          Int
+  area_id             Int?
   titulo              String    @db.VarChar(255)
-  contenido           String
-  fecha_inicio        DateTime  @db.Timestamp(6)
-  fecha_fin           DateTime  @db.Timestamp(6)
+  descripcion         String    @db.Text
+  fecha_evento        DateTime  @db.Timestamp(6)
+  hora_inicio         String?   @db.VarChar(10)
+  hora_fin            String?   @db.VarChar(10)
   estado              String?   @default("pendiente") @db.VarChar(20) // pendiente, en_proceso, aprobado, rechazado
   razon_rechazo       String?   // Obligatorio si es rechazado
   aprobado_por        Int?      // ID del admin que aprobó/rechazó
@@ -121,4 +134,14 @@ model justifications {
   fecha_actualizacion DateTime? @default(now()) @updatedAt @db.Timestamp(6)
   users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_justifications_user")
   approver            users?    @relation("JustificationApprover", fields: [aprobado_por], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_justifications_approver")
+  adjuntos            justification_attachments[]
+}
+
+model justification_attachments {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  justification_id Int
+  ruta_archivo     String
+  tipo_archivo     String?        @db.VarChar(50)
+  fecha_registro   DateTime?      @default(now()) @db.Timestamp(6)
+  justification    justifications @relation(fields: [justification_id], references: [id], onDelete: Cascade)
 }

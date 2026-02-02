@@ -5,7 +5,7 @@ import { CreateComunicadoDto } from './dto/create-comunicado.dto';
 import { UpdateComunicadoDto } from './dto/update-comunicado.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
 
 @ApiTags('Comunicados')
 @Controller('comunicados')
@@ -16,12 +16,10 @@ export class ComunicadosController {
     @UseInterceptors(FileInterceptor('file', {
         storage: diskStorage({
             destination: './uploads',
-            filename: (req, file, cb) => {
-                const randomName = Array(32).fill(null).map(() => (Math.round(Math.random() * 16)).toString(16)).join('');
-                return cb(null, `${randomName}${extname(file.originalname)}`);
-            }
+            filename: editFileName
         }),
-        limits: { fileSize: 50 * 1024 * 1024 } // 50MB
+        fileFilter: imageFileFilter,
+        limits: { fileSize: 10 * 1024 * 1024 } // 10MB per file
     }))
     @ApiConsumes('multipart/form-data')
     @ApiOperation({ summary: 'Create a new announcement with an optional image file' })
