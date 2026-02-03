@@ -9,6 +9,7 @@ import { SuggestionsModule } from './suggestions/suggestions.module';
 import { JustificationsModule } from './justifications/justifications.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -21,6 +22,7 @@ import { join } from 'path';
     JustificationsModule,
     NotificationsModule,
     ComunicadosModule,
+    DashboardModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

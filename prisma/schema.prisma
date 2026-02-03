@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model areas {
@@ -45,7 +46,7 @@ model orders {
   id                  Int       @id @default(autoincrement())
   usuario_id          Int
   descripcion         String?
-  estado              String?   @default("pendiente") @db.VarChar(20)
+  estado              Int?      @default(0)
   monto               Decimal?  @db.Decimal(10, 2)
   fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
   fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
@@ -70,43 +71,42 @@ model user_sessions {
 }
 
 model users {
-  id             Int             @id @default(autoincrement())
-  nombre         String          @db.VarChar(150)
-  email          String          @unique @db.VarChar(150)
-  contrasena     String
-  area_id        Int?
-  rol            String?         @default("empleado") @db.VarChar(20)
-  estado         Boolean?        @default(true)
-  documento      String?         @db.VarChar(50)
-  fecha_registro DateTime?       @default(now()) @db.Timestamp(6)
-  comunicados    comunicados[]
-  device_tokens  device_tokens[]
-  orders         orders[]
-  user_sessions  user_sessions[]
-  areas          areas?          @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
-  suggestions    suggestions[]
-  suggestions_reviewed suggestions[] @relation("SuggestionReviewer")
-  justifications justifications[]
+  id                      Int              @id @default(autoincrement())
+  nombre                  String           @db.VarChar(150)
+  email                   String           @unique @db.VarChar(150)
+  contrasena              String
+  area_id                 Int?
+  rol                     String?          @default("empleado") @db.VarChar(20)
+  estado                  Boolean?         @default(true)
+  documento               String?          @db.VarChar(50)
+  fecha_registro          DateTime?        @default(now()) @db.Timestamp(6)
+  comunicados             comunicados[]
+  device_tokens           device_tokens[]
   justifications_approved justifications[] @relation("JustificationApprover")
+  justifications          justifications[]
+  orders                  orders[]
+  suggestions             suggestions[]
+  suggestions_reviewed    suggestions[]    @relation("SuggestionReviewer")
+  user_sessions           user_sessions[]
+  areas                   areas?           @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
 }
 
 model suggestions {
-  id                  Int       @id @default(autoincrement())
+  id                  Int                      @id @default(autoincrement())
   usuario_id          Int
   area_id             Int?
-  tipo                String?   @db.VarChar(100)
-  titulo              String    @db.VarChar(255)
-  descripcion         String?   @db.Text
-  estado              String?   @default("pendiente") @db.VarChar(20) // pendiente, revisada
-  comentario_admin    String?   @db.Text
+  tipo                String?                  @db.VarChar(100)
+  titulo              String                   @db.VarChar(255)
+  descripcion         String?
+  estado              Int?                     @default(0)
+  comentario_admin    String?
   revisado_por        Int?
-  fecha_revision      DateTime? @db.Timestamp(6)
-  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
-  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
-  
-  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_suggestions_user")
-  reviewer            users?    @relation("SuggestionReviewer", fields: [revisado_por], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  fecha_revision      DateTime?                @db.Timestamp(6)
+  fecha_creacion      DateTime?                @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime?                @default(now()) @db.Timestamp(6)
   adjuntos            suggestion_attachments[]
+  users               users                    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_suggestions_user")
+  reviewer            users?                   @relation("SuggestionReviewer", fields: [revisado_por], references: [id], onUpdate: NoAction)
 }
 
 model suggestion_attachments {
@@ -119,22 +119,22 @@ model suggestion_attachments {
 }
 
 model justifications {
-  id                  Int       @id @default(autoincrement())
+  id                  Int                         @id @default(autoincrement())
   usuario_id          Int
   area_id             Int?
-  titulo              String    @db.VarChar(255)
-  descripcion         String    @db.Text
-  fecha_evento        DateTime  @db.Timestamp(6)
-  hora_inicio         String?   @db.VarChar(10)
-  hora_fin            String?   @db.VarChar(10)
-  estado              String?   @default("pendiente") @db.VarChar(20) // pendiente, en_proceso, aprobado, rechazado
-  razon_rechazo       String?   // Obligatorio si es rechazado
-  aprobado_por        Int?      // ID del admin que aprobó/rechazó
-  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
-  fecha_actualizacion DateTime? @default(now()) @updatedAt @db.Timestamp(6)
-  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_justifications_user")
-  approver            users?    @relation("JustificationApprover", fields: [aprobado_por], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "fk_justifications_approver")
+  titulo              String                      @db.VarChar(255)
+  descripcion         String
+  fecha_evento        DateTime                    @db.Timestamp(6)
+  hora_inicio         String?                     @db.VarChar(10)
+  hora_fin            String?                     @db.VarChar(10)
+  estado              Int?                        @default(0)
+  razon_rechazo       String?
+  aprobado_por        Int?
+  fecha_creacion      DateTime?                   @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime?                   @default(now()) @updatedAt @db.Timestamp(6)
   adjuntos            justification_attachments[]
+  approver            users?                      @relation("JustificationApprover", fields: [aprobado_por], references: [id], onUpdate: NoAction, map: "fk_justifications_approver")
+  users               users                       @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_justifications_user")
 }
 
 model justification_attachments {

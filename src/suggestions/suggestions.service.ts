@@ -15,7 +15,7 @@ export class SuggestionsService {
 
         const sql = `
       INSERT INTO suggestions (usuario_id, area_id, tipo, titulo, descripcion, estado)
-      VALUES ($1, $2, $3, $4, $5, 'pendiente')
+      VALUES ($1, $2, $3, $4, $5, 0)
       RETURNING *
     `;
 
@@ -107,10 +107,8 @@ export class SuggestionsService {
         };
     }
 
-    async updateStatus(id: number, state: string, adminId: number, comment?: string) {
-        let normalizedState = state.toLowerCase();
-        if (normalizedState === 'revisada') normalizedState = 'revisado';
-
+    async updateStatus(id: number, state: number, adminId: number, comment?: string) {
+        // state: 0=pendiente, 1=revisada
         const sql = `
             UPDATE suggestions 
             SET estado = $1, comentario_admin = $2, revisado_por = $3, fecha_revision = NOW(), fecha_actualizacion = NOW()
@@ -118,10 +116,10 @@ export class SuggestionsService {
             RETURNING *
         `;
 
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, normalizedState, comment || null, adminId, id);
+        const result = await (this.prisma as any).$queryRawUnsafe(sql, state, comment || null, adminId, id);
         const suggestion = result[0];
 
-        if (suggestion && normalizedState === 'revisado') {
+        if (suggestion && state === 1) {
             await this.notificationsService.sendPushNotification(
                 suggestion.usuario_id,
                 'Sugerencia Revisada',

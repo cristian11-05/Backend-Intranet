@@ -4,20 +4,21 @@ import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiBody } from '@nestj
 import { CreateComunicadoDto } from './dto/create-comunicado.dto';
 import { UpdateComunicadoDto } from './dto/update-comunicado.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
+import { memoryStorage } from 'multer';
+import { imageFileFilter } from '../common/utils/file-upload.utils';
+import { StorageService } from '../common/services/storage.service';
 
 @ApiTags('Comunicados')
 @Controller('comunicados')
 export class ComunicadosController {
-    constructor(private readonly comunicadosService: ComunicadosService) { }
+    constructor(
+        private readonly comunicadosService: ComunicadosService,
+        private readonly storageService: StorageService,
+    ) { }
 
     @Post()
     @UseInterceptors(FileInterceptor('file', {
-        storage: diskStorage({
-            destination: './uploads',
-            filename: editFileName
-        }),
+        storage: memoryStorage(),
         fileFilter: imageFileFilter,
         limits: { fileSize: 10 * 1024 * 1024 } // 10MB per file
     }))
@@ -33,7 +34,10 @@ export class ComunicadosController {
         const data = { ...createComunicadoDto, autor_id: autorId };
 
         if (file) {
-            data.imagen = `/uploads/${file.filename}`;
+            const url = await this.storageService.uploadFile(file, 'comunicados');
+            data.imagen = url;
+            // Si el DTO usa imagen_url, mapea correspondientemente.
+            // CreateComunicadoDto suele tener 'imagen' o 'imagen_url'.
         }
 
         const result = await this.comunicadosService.create(data);

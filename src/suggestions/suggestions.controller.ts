@@ -6,8 +6,9 @@ import { ApiTags, ApiOperation, ApiResponse, OmitType, ApiConsumes } from '@nest
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
+import { memoryStorage } from 'multer';
+import { imageFileFilter } from '../common/utils/file-upload.utils';
+import { StorageService } from '../common/services/storage.service';
 
 class CreateMobileSuggestionDto extends OmitType(CreateSuggestionDto, ['usuario_id'] as const) { }
 
@@ -17,6 +18,7 @@ export class SuggestionsController {
     constructor(
         private readonly suggestionsService: SuggestionsService,
         private readonly jwtService: JwtService,
+        private readonly storageService: StorageService,
     ) { }
 
     @Patch(':id/status')
@@ -53,10 +55,7 @@ export class SuggestionsController {
     // Endpoint Móvil para Crear con Multi-imágenes
     @Post('mobile')
     @UseInterceptors(FilesInterceptor('files', 5, {
-        storage: diskStorage({
-            destination: './uploads',
-            filename: editFileName
-        }),
+        storage: memoryStorage(),
         fileFilter: imageFileFilter,
         limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
     }))
@@ -97,10 +96,17 @@ export class SuggestionsController {
                 area_id: areaId // Optional
             };
 
-            const attachments = files?.map(f => ({
-                ruta_archivo: `/uploads/${f.filename}`,
-                tipo_archivo: f.mimetype
-            })) || [];
+            // Upload files to Supabase and get URLs
+            const attachments: { ruta_archivo: string; tipo_archivo: string }[] = [];
+            if (files && files.length > 0) {
+                for (const file of files) {
+                    const url = await this.storageService.uploadFile(file, 'suggestions');
+                    attachments.push({
+                        ruta_archivo: url,
+                        tipo_archivo: file.mimetype
+                    });
+                }
+            }
 
             return await this.suggestionsService.create(fullDto, attachments);
         } catch (e) {

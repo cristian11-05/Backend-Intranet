@@ -1,15 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber } from 'class-validator';
 
-export enum OrderStatus {
-    PENDIENTE = 'PENDIENTE',
-    COMPLETADO = 'COMPLETADO',
-    CANCELADO = 'CANCELADO',
-}
-
+// 0 = pendiente, 1 = aprobado, 2 = rechazado
 export class UpdateOrderStatusDto {
-    @ApiProperty({ enum: OrderStatus, example: 'COMPLETADO', description: 'Nuevo estado de la orden' })
-    @IsEnum(OrderStatus)
+    @ApiProperty({ enum: [0, 1, 2], example: 1, description: '0=pendiente, 1=aprobado, 2=rechazado' })
+    @IsNumber()
+    @IsIn([0, 1, 2])
     @IsNotEmpty()
-    status: string;
+    status: number;
 }

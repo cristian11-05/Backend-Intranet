@@ -6,8 +6,9 @@ import { ApiTags, ApiOperation, ApiResponse, OmitType, ApiConsumes } from '@nest
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtService } from '@nestjs/jwt';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { imageFileFilter, editFileName } from '../common/utils/file-upload.utils';
+import { memoryStorage } from 'multer';
+import { imageFileFilter } from '../common/utils/file-upload.utils';
+import { StorageService } from '../common/services/storage.service';
 
 class CreateMobileJustificationDto extends OmitType(CreateJustificationDto, ['usuario_id'] as const) { }
 
@@ -17,6 +18,7 @@ export class JustificationsController {
     constructor(
         private readonly justificationsService: JustificationsService,
         private readonly jwtService: JwtService,
+        private readonly storageService: StorageService,
     ) { }
 
     @Post()
@@ -29,10 +31,7 @@ export class JustificationsController {
     // Endpoint Móvil para Crear con Multi-imágenes
     @Post('mobile')
     @UseInterceptors(FilesInterceptor('files', 5, {
-        storage: diskStorage({
-            destination: './uploads',
-            filename: editFileName
-        }),
+        storage: memoryStorage(),
         fileFilter: imageFileFilter,
         limits: { fileSize: 10 * 1024 * 1024 } // 10MB per image
     }))
@@ -64,13 +63,20 @@ export class JustificationsController {
                 area_id: areaId,
                 hora_inicio: body.hora_inicio || body.startTime,
                 hora_fin: body.hora_fin || body.endTime,
-                estado: 'pendiente' // Default para Web Dashboard
+                estado: 0 // 0=pendiente
             };
 
-            const attachments = files?.map(f => ({
-                ruta_archivo: `/uploads/${f.filename}`,
-                tipo_archivo: f.mimetype
-            })) || [];
+            // Upload files to Supabase and get URLs
+            const attachments: { ruta_archivo: string; tipo_archivo: string }[] = [];
+            if (files && files.length > 0) {
+                for (const file of files) {
+                    const url = await this.storageService.uploadFile(file, 'justifications');
+                    attachments.push({
+                        ruta_archivo: url,
+                        tipo_archivo: file.mimetype
+                    });
+                }
+            }
 
             return await this.justificationsService.create(fullDto, attachments);
         } catch (e) {

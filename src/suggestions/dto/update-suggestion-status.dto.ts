@@ -1,17 +1,13 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export enum SuggestionStatus {
-    PENDIENTE = 'pendiente',
-    REVISADA = 'revisada',
-    REVISADO = 'revisado',
-}
-
+// 0 = pendiente, 1 = revisada
 export class UpdateSuggestionStatusDto {
-    @ApiProperty({ enum: SuggestionStatus, example: 'revisada' })
-    @IsEnum(SuggestionStatus)
+    @ApiProperty({ enum: [0, 1], example: 1, description: '0=pendiente, 1=revisada' })
+    @IsNumber()
+    @IsIn([0, 1])
     @IsNotEmpty()
-    estado: string;
+    estado: number;
 
     @ApiProperty({ required: false })
     @IsString()

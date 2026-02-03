@@ -38,7 +38,7 @@ export class CreateJustificationDto {
     hora_fin?: string;
 
     @ApiProperty({ required: false })
-    @IsString()
+    @IsNumber()
     @IsOptional()
-    estado?: string;
+    estado?: number;
 }

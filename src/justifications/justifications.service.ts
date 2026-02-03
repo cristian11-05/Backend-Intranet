@@ -15,7 +15,7 @@ export class JustificationsService {
 
         const sql = `
       INSERT INTO justifications (usuario_id, area_id, titulo, descripcion, fecha_evento, hora_inicio, hora_fin, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'pendiente')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
       RETURNING *
     `;
 
@@ -103,13 +103,9 @@ export class JustificationsService {
         };
     }
 
-    async updateStatus(id: number, status: string, approvedBy?: number, rejectionReason?: string) {
-        // Normalización para consistencia interna (v3) - Usamos masculino como estándar para el front
-        let normalizedStatus = status.toLowerCase();
-        if (normalizedStatus === 'aprobada') normalizedStatus = 'aprobado';
-        if (normalizedStatus === 'rechazada') normalizedStatus = 'rechazado';
-
-        if (normalizedStatus === 'rechazado' && !rejectionReason) {
+    async updateStatus(id: number, status: number, approvedBy?: number, rejectionReason?: string) {
+        // status: 0=pendiente, 1=aprobado, 2=rechazado
+        if (status === 2 && !rejectionReason) {
             throw new BadRequestException('La razón de rechazo es obligatoria para el estado rechazado');
         }
 
@@ -119,17 +115,17 @@ export class JustificationsService {
             WHERE id = $4
             RETURNING *
         `;
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, normalizedStatus, approvedBy || null, rejectionReason || null, id);
+        const result = await (this.prisma as any).$queryRawUnsafe(sql, status, approvedBy || null, rejectionReason || null, id);
         const justification = result[0];
 
         if (justification) {
             let title = 'Actualización de Justificación';
-            let body = `Tu justificación "${justification.titulo}" ha sido marcada como: ${status}`;
+            let body = `Tu justificación "${justification.titulo}" ha sido actualizada.`;
 
-            if (normalizedStatus === 'aprobado') {
+            if (status === 1) {
                 title = 'Justificación Aprobada';
                 body = `Tu justificación "${justification.titulo}" ha sido aprobada.`;
-            } else if (normalizedStatus === 'rechazado') {
+            } else if (status === 2) {
                 title = 'Justificación Rechazada';
                 body = `Tu justificación "${justification.titulo}" ha sido rechazada. Motivo: ${rejectionReason}`;
             }
