@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { users as User, Prisma } from '@prisma/client';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class UsersService {
@@ -12,13 +13,16 @@ export class UsersService {
         });
     }
 
-    async findAll(page: number = 1, limit: number = 10) {
+    async findAll(page: number = 1, limit: number = 5000) {
         const skip = (page - 1) * limit;
         const [data, total] = await Promise.all([
             this.prisma.users.findMany({
                 skip,
                 take: limit,
-                orderBy: { fecha_registro: 'desc' }
+                orderBy: [
+                    { estado: 'desc' },
+                    { fecha_registro: 'desc' }
+                ]
             }),
             this.prisma.users.count(),
         ]);
@@ -67,9 +71,118 @@ export class UsersService {
     }
 
     async remove(id: number): Promise<User> {
-        return this.prisma.users.update({
+        return this.prisma.users.delete({
             where: { id },
-            data: { estado: false }
         });
+    }
+
+    async bulkRemove(documents: string[], action: 'inactivate' | 'delete' = 'inactivate'): Promise<{ success: number; notFound: string[] }> {
+        let successCount = 0;
+        const notFound: string[] = [];
+
+        for (const doc of documents) {
+            const user = await this.prisma.users.findFirst({
+                where: { documento: doc }
+            });
+
+            if (user) {
+                if (action === 'delete') {
+                    await this.prisma.users.delete({
+                        where: { id: user.id }
+                    });
+                } else {
+                    await this.prisma.users.update({
+                        where: { id: user.id },
+                        data: { estado: false }
+                    });
+                }
+                successCount++;
+            } else {
+                notFound.push(doc);
+            }
+        }
+
+        return { success: successCount, notFound };
+    }
+
+    async importExcel(buffer: Buffer): Promise<{ success: number; errors: any[] }> {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer as any);
+        const worksheet = workbook.getWorksheet(1);
+
+        if (!worksheet) {
+            throw new Error('La hoja de cálculo está vacía');
+        }
+
+        const users: any[] = [];
+        const errors: any[] = [];
+        let successCount = 0;
+
+        const normalizeHeader = (header: string) => {
+            return header.toLowerCase()
+                .trim()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/\s+/g, '_');
+        };
+
+        worksheet.eachRow((row, rowNumber) => {
+            if (rowNumber === 1) return; // Skip header
+
+            const rowData: any = {};
+            row.eachCell((cell, colNumber) => {
+                const rawHeader = worksheet.getRow(1).getCell(colNumber).value?.toString();
+                if (rawHeader) {
+                    const header = normalizeHeader(rawHeader);
+                    rowData[header] = cell.value;
+                }
+            });
+
+            users.push({ rowData, rowNumber });
+        });
+
+        for (const { rowData, rowNumber } of users) {
+            try {
+                const documento = (rowData.documento || rowData.dni)?.toString();
+                const email = rowData.email || (documento ? `${documento}@aquanqa.com` : undefined);
+                const nombre = rowData.nombre?.toString();
+                const rol = rowData.rol || rowData.tipo_contrato || 'empleado';
+                const estadoRaw = rowData.estado || rowData.status;
+                const estado = (estadoRaw === 'Activo' || estadoRaw === true || estadoRaw === 'true');
+                const area_id = rowData.area_id || rowData.areaid || rowData.area_id_ ? parseInt((rowData.area_id || rowData.areaid || rowData.area_id_).toString()) : undefined;
+                const contrasena = rowData.contrasena || rowData.password || documento;
+
+                if (!documento || !email) {
+                    errors.push({ row: rowNumber, error: 'Documento y Email son requeridos' });
+                    continue;
+                }
+
+                await this.prisma.users.upsert({
+                    where: { email },
+                    update: {
+                        nombre,
+                        rol,
+                        estado,
+                        area_id,
+                        documento,
+                        contrasena,
+                    },
+                    create: {
+                        nombre: nombre || 'Usuario Importado',
+                        email,
+                        documento,
+                        rol,
+                        estado,
+                        area_id,
+                        contrasena: contrasena || documento,
+                    },
+                });
+                successCount++;
+            } catch (err) {
+                errors.push({ row: rowNumber, error: err.message });
+            }
+        }
+
+        return { success: successCount, errors };
     }
 }

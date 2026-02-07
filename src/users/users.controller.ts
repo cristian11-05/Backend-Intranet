@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Delete, Param, Res, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Delete, Param, Res, Query, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -26,6 +27,28 @@ export class UsersController {
         res.header('Content-Type', 'text/csv');
         res.attachment('usuarios.csv');
         return res.send(csv);
+    }
+
+    @Post('import')
+    @UseInterceptors(FileInterceptor('file'))
+    @ApiOperation({ summary: 'Import users from Excel' })
+    @ApiResponse({ status: 200, description: 'Users imported successfully.' })
+    async import(@UploadedFile() file: Express.Multer.File | undefined) {
+        if (!file) {
+            throw new Error('Archivo no encontrado');
+        }
+        return this.usersService.importExcel(file.buffer);
+    }
+
+    @Post('bulk-delete')
+    @ApiOperation({ summary: 'Delete multiple users by document' })
+    @ApiResponse({ status: 200, description: 'Users deleted successfully.' })
+    async bulkRemove(@Body() body: { documents: string[], action?: 'inactivate' | 'delete' }) {
+        const { documents, action = 'inactivate' } = body;
+        if (!documents || !Array.isArray(documents)) {
+            throw new Error('Lista de documentos no válida');
+        }
+        return this.usersService.bulkRemove(documents, action);
     }
 
 

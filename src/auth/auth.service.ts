@@ -13,8 +13,15 @@ export class AuthService {
     ) { }
 
     async signIn(identifier: string, pass: string, deviceData?: { deviceId?: string, deviceName?: string }): Promise<any> {
-        // Buscamos por email (el documento no existe en la tabla users)
-        const user = await this.usersService.findOne({ email: identifier });
+        // Buscamos por email o documento (DNI)
+        const user = await this.prisma.users.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { documento: identifier }
+                ]
+            }
+        });
 
         if (!user || user.contrasena !== pass) {
             throw new UnauthorizedException('Credenciales incorrectas');
