@@ -7,6 +7,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { imageFileFilter } from '../common/utils/file-upload.utils';
 import { StorageService } from '../common/services/storage.service';
+import { UsersService } from '../users/users.service';
 
 @ApiTags('Comunicados')
 @Controller('comunicados')
@@ -14,6 +15,7 @@ export class ComunicadosController {
     constructor(
         private readonly comunicadosService: ComunicadosService,
         private readonly storageService: StorageService,
+        private readonly usersService: UsersService,
     ) { }
 
     @Post()
@@ -30,8 +32,12 @@ export class ComunicadosController {
         @Body() createComunicadoDto: CreateComunicadoDto,
         @Req() req: any
     ) {
-        const autorId = createComunicadoDto.autor_id || 1;
-        const data = { ...createComunicadoDto, autor_id: autorId };
+        let autorId = createComunicadoDto.autor_id;
+        if (!autorId || autorId === '0' || autorId === 0) {
+            autorId = 2; // Confirmed valid ID from database (2 is the first available admin-like user)
+        }
+
+        const data = { ...createComunicadoDto, autor_id: Number(autorId) };
 
         if (file) {
             const url = await this.storageService.uploadFile(file, 'comunicados');

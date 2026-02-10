@@ -22,6 +22,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: false, // Relaxed to avoid blocking the user on extra fields
+    transform: true,
   }));
 
   app.useGlobalFilters(new AllExceptionsFilter());

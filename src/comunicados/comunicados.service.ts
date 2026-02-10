@@ -5,11 +5,14 @@ import { NotificationsService } from '../notifications/notifications.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { StorageService } from '../common/services/storage.service';
+
 @Injectable()
 export class ComunicadosService {
     constructor(
         private prisma: PrismaService,
-        private notificationsService: NotificationsService
+        private notificationsService: NotificationsService,
+        private storageService: StorageService
     ) { }
 
     async create(data: any) {
@@ -18,8 +21,8 @@ export class ComunicadosService {
 
         // Process image if it is Base64
         if (data.imagen && data.imagen.startsWith('data:image')) {
-            data.imagen_url = this.saveBase64Image(data.imagen);
-            delete data.imagen; // Remove base64 string from DTO to avoid DB error if using loose types, or just for cleanup
+            data.imagen_url = await this.storageService.uploadBase64(data.imagen, 'comunicados');
+            delete data.imagen;
         } else if (data.imagen) {
             data.imagen_url = data.imagen; // Assume it is URL
             delete data.imagen;
@@ -60,7 +63,7 @@ export class ComunicadosService {
 
     async update(id: number, data: any) {
         if (data.imagen && data.imagen.startsWith('data:image')) {
-            data.imagen_url = this.saveBase64Image(data.imagen);
+            data.imagen_url = await this.storageService.uploadBase64(data.imagen, 'comunicados');
             delete data.imagen;
         }
 
@@ -83,24 +86,4 @@ export class ComunicadosService {
         });
     }
 
-    private saveBase64Image(base64Str: string): string | null {
-        // Simple Base64 saver
-        const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        if (!matches || matches.length !== 3) {
-            return null;
-        }
-
-        const type = matches[1];
-        const buffer = Buffer.from(matches[2], 'base64');
-        const extension = type.split('/')[1];
-        const fileName = `announcement-${Date.now()}.${extension}`;
-        const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Check relative path
-
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-        return `/uploads/${fileName}`; // Return relative URL
-    }
 }

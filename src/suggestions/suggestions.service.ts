@@ -76,14 +76,23 @@ export class SuggestionsService {
             (this.prisma as any).$queryRawUnsafe(countSql),
         ]);
 
-        const data = await Promise.all((rawResults as any[]).map(async item => {
-            const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM suggestion_attachments WHERE suggestion_id = $1`;
-            const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, item.id);
+        const suggestions = rawResults as any[];
+        const ids = suggestions.map(s => s.id);
+
+        let allAttachments: any[] = [];
+        if (ids.length > 0) {
+            const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+            const attachmentsSql = `SELECT id, suggestion_id, ruta_archivo, tipo_archivo FROM suggestion_attachments WHERE suggestion_id IN (${placeholders})`;
+            allAttachments = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, ...ids);
+        }
+
+        const data = suggestions.map(item => {
+            const adjuntos = allAttachments.filter(a => a.suggestion_id === item.id);
 
             return {
                 ...item,
-                usuario_nombre: item.usuario_nombre, // Explícito para el front
-                area_nombre: item.area_nombre, // Explícito para el front
+                usuario_nombre: item.usuario_nombre,
+                area_nombre: item.area_nombre,
                 user: {
                     nombre: item.usuario_nombre,
                     email: item.usuario_email
@@ -91,10 +100,10 @@ export class SuggestionsService {
                 revisado_por_user: item.revisado_por_nombre ? {
                     nombre: item.revisado_por_nombre
                 } : null,
-                adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
-                adjuntos: adjuntos || []
+                adjunto_url: adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
+                adjuntos: adjuntos
             };
-        }));
+        });
 
         return {
             data,

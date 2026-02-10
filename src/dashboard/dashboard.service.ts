@@ -8,28 +8,30 @@ export class DashboardService {
     async getStats() {
         // Justifications stats
         // estado: 0=pendiente, 1=aprobado, 2=rechazado
-        const justificationsTotal = await this.prisma.justifications.count();
-        const justificationsApproved = await this.prisma.justifications.count({
-            where: { estado: 1 },
+        // Justifications stats (0=pendiente, 1=aprobado, 2=rechazado)
+        const justStats = await this.prisma.justifications.groupBy({
+            by: ['estado'],
+            _count: { id: true }
         });
-        const justificationsPending = await this.prisma.justifications.count({
-            where: { estado: 0 },
-        });
-        const justificationsRejected = await this.prisma.justifications.count({
-            where: { estado: 2 },
-        });
+
+        const getJustCount = (status: number) => justStats.find(s => s.estado === status)?._count.id || 0;
+        const justificationsTotal = justStats.reduce((acc, curr) => acc + curr._count.id, 0);
+
+        const justificationsApproved = getJustCount(1);
+        const justificationsPending = getJustCount(0);
+        const justificationsRejected = getJustCount(2);
 
         // Suggestions stats
-        // The frontend groups them into 'Total General', 'Reporte de situación', 'Te escuchamos'
-        const suggestionsTotal = await this.prisma.suggestions.count();
+        const sugStats = await this.prisma.suggestions.groupBy({
+            by: ['tipo'],
+            _count: { id: true }
+        });
 
-        // Note: Checking the exact string for 'tipo' as seen in the controller
-        const suggestionsReporte = await this.prisma.suggestions.count({
-            where: { tipo: 'Reporte de situación' },
-        });
-        const suggestionsTeEscuchamos = await this.prisma.suggestions.count({
-            where: { tipo: 'Te escuchamos' },
-        });
+        const getSugCount = (tipo: string) => sugStats.find(s => s.tipo === tipo)?._count.id || 0;
+        const suggestionsTotal = sugStats.reduce((acc, curr) => acc + curr._count.id, 0);
+
+        const suggestionsReporte = getSugCount('Reporte de situación');
+        const suggestionsTeEscuchamos = getSugCount('Te escuchamos');
 
         return {
             totalJustificaciones: justificationsTotal,

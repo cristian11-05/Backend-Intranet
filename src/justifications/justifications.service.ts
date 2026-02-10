@@ -75,22 +75,31 @@ export class JustificationsService {
             (this.prisma as any).$queryRawUnsafe(countSql),
         ]);
 
-        const data = await Promise.all((rawResults as any[]).map(async item => {
-            const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM justification_attachments WHERE justification_id = $1`;
-            const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, item.id);
+        const justifications = rawResults as any[];
+        const ids = justifications.map(j => j.id);
+
+        let allAttachments: any[] = [];
+        if (ids.length > 0) {
+            const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+            const attachmentsSql = `SELECT id, justification_id, ruta_archivo, tipo_archivo FROM justification_attachments WHERE justification_id IN (${placeholders})`;
+            allAttachments = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, ...ids);
+        }
+
+        const data = justifications.map(item => {
+            const adjuntos = allAttachments.filter(a => a.justification_id === item.id);
 
             return {
                 ...item,
-                usuario_nombre: item.usuario_nombre, // Explícito para el front
-                area_nombre: item.area_nombre, // Explícito para el front
+                usuario_nombre: item.usuario_nombre,
+                area_nombre: item.area_nombre,
                 user: {
                     nombre: item.usuario_nombre,
                     email: item.usuario_email
                 },
-                adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
-                adjuntos: adjuntos || []
+                adjunto_url: adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
+                adjuntos: adjuntos
             };
-        }));
+        });
 
         return {
             data,

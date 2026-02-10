@@ -19,6 +19,17 @@ export class UsersService {
             this.prisma.users.findMany({
                 skip,
                 take: limit,
+                select: {
+                    id: true,
+                    email: true,
+                    nombre: true,
+                    rol: true,
+                    estado: true,
+                    documento: true,
+                    area_id: true,
+                    fecha_registro: true,
+                    // Excluded: contrasena (security/performance)
+                },
                 orderBy: [
                     { estado: 'desc' },
                     { fecha_registro: 'desc' }

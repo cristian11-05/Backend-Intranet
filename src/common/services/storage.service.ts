@@ -47,4 +47,42 @@ export class StorageService {
 
         return publicUrlData.publicUrl;
     }
+
+    /**
+     * Sube una imagen en formato Base64 a Supabase Storage y retorna la URL pública
+     * @param base64Str - El string Base64 (incluyendo el prefijo data:image/...)
+     * @param folder - Carpeta dentro del bucket
+     * @returns URL pública del archivo
+     */
+    async uploadBase64(base64Str: string, folder: string): Promise<string | null> {
+        const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) {
+            return null;
+        }
+
+        const contentType = matches[1];
+        const buffer = Buffer.from(matches[2], 'base64');
+        const extension = contentType.split('/')[1] || 'png';
+
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 8);
+        const fileName = `${folder}/${timestamp}-${randomString}.${extension}`;
+
+        const { data, error } = await this.supabase.storage
+            .from(this.bucketName)
+            .upload(fileName, buffer, {
+                contentType: contentType,
+                upsert: false,
+            });
+
+        if (error) {
+            throw new Error(`Error uploading base64 to Supabase: ${error.message}`);
+        }
+
+        const { data: publicUrlData } = this.supabase.storage
+            .from(this.bucketName)
+            .getPublicUrl(fileName);
+
+        return publicUrlData.publicUrl;
+    }
 }

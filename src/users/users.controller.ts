@@ -58,11 +58,11 @@ export class UsersController {
     @ApiResponse({ status: 400, description: 'Bad Request.' })
     async create(@Body() createUserDto: CreateUserDto) {
         console.log('Creating user with data:', createUserDto);
-        const { documento, dni, contrasena, area_id, estado, ...userData } = createUserDto as any;
+        const { documento, dni, contrasena, area_id, estado, status, rol, tipo_contrato, ...userData } = createUserDto as any;
 
         const finalDocumento = documento || dni;
 
-        let finalContrasena = contrasena;
+        let finalContrasena = contrasena || createUserDto.password;
         if (!finalContrasena && finalDocumento) {
             finalContrasena = finalDocumento;
         }
@@ -81,18 +81,24 @@ export class UsersController {
         }
 
         // Map state string to boolean
-        const finalEstado = estado === 'Activo' ? true : (estado === 'Inactivo' ? false : true);
+        const estadoRaw = estado !== undefined ? estado : status;
+        const finalEstado = (estadoRaw === 'Activo' || estadoRaw === true || estadoRaw === 'true');
+
+        // Map role/contract type
+        const finalRol = rol || tipo_contrato || 'empleado';
 
         // Map area_id to number if present
-        const finalAreaId = area_id ? parseInt(area_id.toString()) : undefined;
+        const finalAreaIdRaw = area_id !== undefined ? area_id : createUserDto.areaId;
+        const finalAreaId = finalAreaIdRaw ? parseInt(finalAreaIdRaw.toString()) : undefined;
 
         const prismaData = {
             ...userData,
             email: finalEmail,
             contrasena: finalContrasena,
             estado: finalEstado,
+            rol: finalRol,
             area_id: finalAreaId,
-            documento: finalDocumento, // Ensure finalDocumento is included
+            documento: finalDocumento,
         };
 
         console.log('Final Prisma payload for create:', JSON.stringify(prismaData));
@@ -116,7 +122,7 @@ export class UsersController {
             const finalDocumento = documento || dni;
             const finalRol = rol || tipo_contrato;
             const finalEstadoRaw = estado !== undefined ? estado : status;
-            const finalAreaIdRaw = area_id !== undefined ? area_id : areaId;
+            const finalAreaIdRaw = area_id !== undefined ? areaId : area_id; // Added fallback
             const finalContrasena = contrasena || password;
 
             const mappedData: any = {};
@@ -127,11 +133,12 @@ export class UsersController {
             if (finalDocumento !== undefined) mappedData.documento = finalDocumento;
 
             if (finalEstadoRaw !== undefined) {
-                mappedData.estado = (finalEstadoRaw === 'Activo' || finalEstadoRaw === true);
+                mappedData.estado = (finalEstadoRaw === 'Activo' || finalEstadoRaw === true || finalEstadoRaw === 'true');
             }
 
-            if (finalAreaIdRaw !== undefined) {
-                mappedData.area_id = parseInt(finalAreaIdRaw.toString());
+            if (finalAreaIdRaw !== undefined || area_id !== undefined) {
+                const aId = finalAreaIdRaw !== undefined ? finalAreaIdRaw : area_id;
+                mappedData.area_id = parseInt(aId.toString());
             }
 
             console.log(`[Update] Final mapping for ID ${id}:`, JSON.stringify(mappedData));

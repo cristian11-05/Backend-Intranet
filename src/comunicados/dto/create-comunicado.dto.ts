@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateComunicadoDto {
     @ApiProperty({ example: 'Nuevo Beneficio', description: 'Título del comunicado' })
@@ -18,12 +19,10 @@ export class CreateComunicadoDto {
     imagen?: string;
 
     @ApiProperty({ example: 1, description: 'ID del autor (usuario)', required: false })
-    @IsNumber()
     @IsOptional()
-    autor_id?: number;
+    autor_id?: any;
 
     @ApiProperty({ example: true, description: 'Estado activo del comunicado', default: true })
-    @IsBoolean()
     @IsOptional()
-    activo?: boolean;
+    activo?: any;
 }
