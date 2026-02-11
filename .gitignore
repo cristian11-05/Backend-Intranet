@@ -1,0 +1,23 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated/prisma
+/uploads/*
+!/uploads/.gitkeep
+/dist
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.gemini
+
+# Debug and test files
+brute-force-db.js
+check-*.js
+test-*.js
+reproduce-*.js
+verify-*.js
+*-error.txt
+*-trace.txt
+kotlin_files.txt

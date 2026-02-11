@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model areas {
+  id          Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(100)
+  descripcion String?
+  users       users[]
+}
+
+model comunicados {
+  id                  Int       @id @default(autoincrement())
+  titulo              String    @db.VarChar(255)
+  contenido           String
+  imagen_url          String?
+  autor_id            Int?
+  activo              Boolean?  @default(true)
+  fecha_publicacion   DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users?    @relation(fields: [autor_id], references: [id], onUpdate: NoAction, map: "fk_comunicados_autor")
+}
+
+model device_tokens {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id          Int
+  token               String    @unique
+  device_id           String    @db.VarChar(255)
+  device_name         String?   @db.VarChar(255)
+  os_type             String?   @db.VarChar(20)
+  is_active           Boolean?  @default(true)
+  fecha_registro      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_device_tokens_user")
+
+  @@unique([usuario_id, device_id], map: "unique_user_device")
+}
+
+model orders {
+  id                  Int       @id @default(autoincrement())
+  usuario_id          Int
+  descripcion         String?
+  estado              Int?      @default(0)
+  monto               Decimal?  @db.Decimal(10, 2)
+  fecha_creacion      DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime? @default(now()) @db.Timestamp(6)
+  users               users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_orders_user")
+}
+
+model user_sessions {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id         Int
+  refresh_token_hash String
+  device_id          String?   @db.VarChar(255)
+  device_name        String?   @db.VarChar(255)
+  ip_address         String?   @db.VarChar(45)
+  user_agent         String?
+  is_revoked         Boolean?  @default(false)
+  expires_at         DateTime  @db.Timestamp(6)
+  last_used_at       DateTime? @db.Timestamp(6)
+  fecha_creacion     DateTime? @default(now()) @db.Timestamp(6)
+  users              users     @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_sessions_user")
+
+  @@unique([usuario_id, device_id], map: "idx_user_sessions_device")
+}
+
+model users {
+  id                      Int              @id @default(autoincrement())
+  nombre                  String           @db.VarChar(150)
+  email                   String           @unique @db.VarChar(150)
+  contrasena              String
+  area_id                 Int?
+  rol                     String?          @default("empleado") @db.VarChar(20)
+  estado                  Boolean?         @default(true)
+  documento               String?          @db.VarChar(50)
+  fecha_registro          DateTime?        @default(now()) @db.Timestamp(6)
+  comunicados             comunicados[]
+  device_tokens           device_tokens[]
+  justifications_approved justifications[] @relation("JustificationApprover")
+  justifications          justifications[]
+  orders                  orders[]
+  suggestions             suggestions[]
+  suggestions_reviewed    suggestions[]    @relation("SuggestionReviewer")
+  user_sessions           user_sessions[]
+  areas                   areas?           @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
+}
+
+model suggestions {
+  id                  Int                      @id @default(autoincrement())
+  usuario_id          Int
+  area_id             Int?
+  tipo                String?                  @db.VarChar(100)
+  titulo              String                   @db.VarChar(255)
+  descripcion         String?
+  estado              Int?                     @default(0)
+  comentario_admin    String?
+  revisado_por        Int?
+  fecha_revision      DateTime?                @db.Timestamp(6)
+  fecha_creacion      DateTime?                @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime?                @default(now()) @db.Timestamp(6)
+  adjuntos            suggestion_attachments[]
+  users               users                    @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_suggestions_user")
+  reviewer            users?                   @relation("SuggestionReviewer", fields: [revisado_por], references: [id], onUpdate: NoAction)
+}
+
+model suggestion_attachments {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  suggestion_id  Int
+  ruta_archivo   String
+  tipo_archivo   String?     @db.VarChar(50)
+  fecha_registro DateTime?   @default(now()) @db.Timestamp(6)
+  suggestion     suggestions @relation(fields: [suggestion_id], references: [id], onDelete: Cascade)
+}
+
+model justifications {
+  id                  Int                         @id @default(autoincrement())
+  usuario_id          Int
+  area_id             Int?
+  titulo              String                      @db.VarChar(255)
+  descripcion         String
+  fecha_evento        DateTime                    @db.Timestamp(6)
+  hora_inicio         String?                     @db.VarChar(10)
+  hora_fin            String?                     @db.VarChar(10)
+  estado              Int?                        @default(0)
+  razon_rechazo       String?
+  aprobado_por        Int?
+  fecha_creacion      DateTime?                   @default(now()) @db.Timestamp(6)
+  fecha_actualizacion DateTime?                   @default(now()) @updatedAt @db.Timestamp(6)
+  adjuntos            justification_attachments[]
+  approver            users?                      @relation("JustificationApprover", fields: [aprobado_por], references: [id], onUpdate: NoAction, map: "fk_justifications_approver")
+  users               users                       @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_justifications_user")
+}
+
+model justification_attachments {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  justification_id Int
+  ruta_archivo     String
+  tipo_archivo     String?        @db.VarChar(50)
+  fecha_registro   DateTime?      @default(now()) @db.Timestamp(6)
+  justification    justifications @relation(fields: [justification_id], references: [id], onDelete: Cascade)
+}
