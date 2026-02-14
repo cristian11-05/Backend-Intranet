@@ -60,23 +60,23 @@ export class UsersController {
         console.log('Creating user with data:', createUserDto);
         const { documento, dni, contrasena, area_id, estado, status, rol, tipo_contrato, ...userData } = createUserDto as any;
 
-        const finalDocumento = documento || dni;
+        const finalDocumento = (documento && documento !== '') ? documento : dni;
 
-        let finalContrasena = contrasena || createUserDto.password;
-        if (!finalContrasena && finalDocumento) {
+        let finalContrasena = (contrasena && contrasena !== '') ? contrasena : createUserDto.password;
+        if ((!finalContrasena || finalContrasena === '') && finalDocumento) {
             finalContrasena = finalDocumento;
         }
 
         let finalEmail = userData.email;
-        if (!finalEmail && finalDocumento) {
+        if ((!finalEmail || finalEmail === '') && finalDocumento) {
             finalEmail = `${finalDocumento}@aquanqa.com`;
         }
 
-        if (!finalContrasena) {
+        if (!finalContrasena || finalContrasena === '') {
             throw new Error('La contraseña es requerida');
         }
 
-        if (!finalEmail) {
+        if (!finalEmail || finalEmail === '') {
             throw new Error('El email es requerido');
         }
 
@@ -89,7 +89,13 @@ export class UsersController {
 
         // Map area_id to number if present
         const finalAreaIdRaw = area_id !== undefined ? area_id : createUserDto.areaId;
-        const finalAreaId = finalAreaIdRaw ? parseInt(finalAreaIdRaw.toString()) : undefined;
+        let finalAreaId: number | undefined = undefined;
+        if (finalAreaIdRaw !== undefined && finalAreaIdRaw !== null && finalAreaIdRaw !== '') {
+            const parsed = parseInt(finalAreaIdRaw.toString());
+            if (!isNaN(parsed)) {
+                finalAreaId = parsed;
+            }
+        }
 
         const prismaData = {
             ...userData,

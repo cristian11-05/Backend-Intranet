@@ -8,13 +8,12 @@ export class CreateUserDto {
     documento?: string;
 
     @ApiProperty({ example: 'user@example.com', description: 'User email' })
-    @IsEmail()
+    @IsString()
     @IsOptional() // Controller logic implies email can be generated from documento
     email?: string;
 
     @ApiProperty({ example: 'password123', description: 'User password', required: false })
     @IsString()
-    @MinLength(6)
     @IsOptional()
     contrasena?: string;
 

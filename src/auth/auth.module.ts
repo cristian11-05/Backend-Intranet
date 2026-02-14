@@ -19,3 +19,9 @@ import { PrismaModule } from '../prisma/prisma.module';
     controllers: [AuthController],
 })
 export class AuthModule { }
+
+
+
+
+
+

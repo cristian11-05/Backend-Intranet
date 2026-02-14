@@ -20,9 +20,13 @@ export class CreateComunicadoDto {
 
     @ApiProperty({ example: 1, description: 'ID del autor (usuario)', required: false })
     @IsOptional()
-    autor_id?: any;
+    @Type(() => Number)
+    @IsNumber()
+    autor_id?: number;
 
     @ApiProperty({ example: true, description: 'Estado activo del comunicado', default: true })
     @IsOptional()
-    activo?: any;
+    @Type(() => Boolean)
+    @IsBoolean()
+    activo?: boolean;
 }
