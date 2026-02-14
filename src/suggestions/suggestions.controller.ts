@@ -42,7 +42,12 @@ export class SuggestionsController {
             }
         }
 
-        return this.suggestionsService.updateStatus(+id, updateDto.estado, adminId, updateDto.comentario);
+        let finalEstado = updateDto.estado;
+        if (typeof finalEstado === 'string' && finalEstado.toLowerCase() === 'revisada') {
+            finalEstado = 1;
+        }
+
+        return this.suggestionsService.updateStatus(+id, +finalEstado, adminId, updateDto.comentario);
     }
 
     @Post()

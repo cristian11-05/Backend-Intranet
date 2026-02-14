@@ -30,20 +30,21 @@ export class ComunicadosController {
     async create(
         @UploadedFile() file: Express.Multer.File,
         @Body() createComunicadoDto: CreateComunicadoDto,
-        @Req() req: any
     ) {
         let autorId = createComunicadoDto.autor_id;
-        if (!autorId || autorId === '0' || autorId === 0) {
-            autorId = 2; // Confirmed valid ID from database (2 is the first available admin-like user)
+        if (!autorId || autorId === 0) {
+            autorId = 2; // Default admin user if not provided
         }
 
-        const data = { ...createComunicadoDto, autor_id: Number(autorId) };
+        const data: any = {
+            ...createComunicadoDto,
+            autor_id: Number(autorId)
+        };
 
         if (file) {
             const url = await this.storageService.uploadFile(file, 'comunicados');
-            data.imagen = url;
-            // Si el DTO usa imagen_url, mapea correspondientemente.
-            // CreateComunicadoDto suele tener 'imagen' o 'imagen_url'.
+            data.imagen_url = url;
+            delete data.imagen;
         }
 
         const result = await this.comunicadosService.create(data);

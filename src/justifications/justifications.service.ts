@@ -13,101 +13,60 @@ export class JustificationsService {
     async create(createJustificationDto: CreateJustificationDto, attachments?: { ruta_archivo: string, tipo_archivo: string }[]) {
         const { usuario_id, area_id, titulo, descripcion, fecha_evento, hora_inicio, hora_fin } = createJustificationDto;
 
-        const sql = `
-      INSERT INTO justifications (usuario_id, area_id, titulo, descripcion, fecha_evento, hora_inicio, hora_fin, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
-      RETURNING *
-    `;
+        const [justification, areas] = await Promise.all([
+            this.prisma.justifications.create({
+                data: {
+                    usuario_id,
+                    area_id,
+                    titulo,
+                    descripcion,
+                    fecha_evento: new Date(fecha_evento),
+                    hora_inicio,
+                    hora_fin,
+                    estado: 0,
+                    adjuntos: {
+                        create: attachments || []
+                    }
+                },
+                include: {
+                    users: { select: { nombre: true, email: true } },
+                    approver: { select: { nombre: true } },
+                    adjuntos: true
+                }
+            }),
+            this.prisma.areas.findMany()
+        ]);
 
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, usuario_id, area_id, titulo, descripcion, new Date(fecha_evento), hora_inicio, hora_fin);
-        const justification = result[0];
-
-        if (attachments && attachments.length > 0) {
-            for (const attachment of attachments) {
-                const attachSql = `INSERT INTO justification_attachments (justification_id, ruta_archivo, tipo_archivo) VALUES ($1, $2, $3)`;
-                await (this.prisma as any).$queryRawUnsafe(attachSql, justification.id, attachment.ruta_archivo, attachment.tipo_archivo);
-            }
-        }
-
-        // Fetch detailed info and attachments
-        const detailedSql = `
-            SELECT j.*, u.nombre as usuario_nombre, u.email as usuario_email, a.nombre as area_nombre
-            FROM justifications j
-            LEFT JOIN users u ON j.usuario_id = u.id
-            LEFT JOIN areas a ON j.area_id = a.id
-            WHERE j.id = $1
-        `;
-        const detailedResult = await (this.prisma as any).$queryRawUnsafe(detailedSql, justification.id);
-        const justificationDetailed = detailedResult[0];
-
-        const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM justification_attachments WHERE justification_id = $1`;
-        const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, justification.id);
-
-        return {
-            ...justificationDetailed,
-            user: {
-                nombre: justificationDetailed.usuario_nombre,
-                email: justificationDetailed.usuario_email
-            },
-            adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
-            adjuntos: adjuntos || []
-        };
+        return this.mapJustification(justification, areas);
     }
 
     async findAll(page: number = 1, limit: number = 10) {
         const skip = (page - 1) * limit;
 
-        const dataSql = `
-      SELECT j.*, u.nombre as usuario_nombre, u.email as usuario_email, a.nombre as area_nombre,
-             admin.nombre as aprobado_por_nombre
-      FROM justifications j
-      LEFT JOIN users u ON j.usuario_id = u.id
-      LEFT JOIN areas a ON j.area_id = a.id
-      LEFT JOIN users admin ON j.aprobado_por = admin.id
-      ORDER BY j.fecha_creacion DESC
-      LIMIT $1 OFFSET $2
-    `;
-
-        const countSql = `SELECT COUNT(*) FROM justifications`;
-
-        const [rawResults, [{ count }]] = await Promise.all([
-            (this.prisma as any).$queryRawUnsafe(dataSql, limit, skip),
-            (this.prisma as any).$queryRawUnsafe(countSql),
+        const [justifications, total, areas] = await Promise.all([
+            this.prisma.justifications.findMany({
+                skip,
+                take: limit,
+                include: {
+                    users: { select: { nombre: true, email: true } },
+                    approver: { select: { nombre: true } },
+                    adjuntos: true
+                },
+                orderBy: { fecha_creacion: 'desc' }
+            }),
+            this.prisma.justifications.count(),
+            this.prisma.areas.findMany()
         ]);
 
-        const justifications = rawResults as any[];
-        const ids = justifications.map(j => j.id);
-
-        let allAttachments: any[] = [];
-        if (ids.length > 0) {
-            const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
-            const attachmentsSql = `SELECT id, justification_id, ruta_archivo, tipo_archivo FROM justification_attachments WHERE justification_id IN (${placeholders})`;
-            allAttachments = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, ...ids);
-        }
-
-        const data = justifications.map(item => {
-            const adjuntos = allAttachments.filter(a => a.justification_id === item.id);
-
-            return {
-                ...item,
-                usuario_nombre: item.usuario_nombre,
-                area_nombre: item.area_nombre,
-                user: {
-                    nombre: item.usuario_nombre,
-                    email: item.usuario_email
-                },
-                adjunto_url: adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
-                adjuntos: adjuntos
-            };
-        });
+        const data = justifications.map(j => this.mapJustification(j, areas));
 
         return {
             data,
             meta: {
-                total: parseInt(count),
+                total,
                 page,
                 limit,
-                totalPages: Math.ceil(parseInt(count) / limit),
+                totalPages: Math.ceil(total / limit),
             }
         };
     }
@@ -118,14 +77,21 @@ export class JustificationsService {
             throw new BadRequestException('La razón de rechazo es obligatoria para el estado rechazado');
         }
 
-        const sql = `
-            UPDATE justifications 
-            SET estado = $1, aprobado_por = $2, razon_rechazo = $3, fecha_actualizacion = NOW()
-            WHERE id = $4
-            RETURNING *
-        `;
-        const result = await (this.prisma as any).$queryRawUnsafe(sql, status, approvedBy || null, rejectionReason || null, id);
-        const justification = result[0];
+        // 1. Perform update
+        const justification = await this.prisma.justifications.update({
+            where: { id },
+            data: {
+                estado: status,
+                aprobado_por: approvedBy,
+                razon_rechazo: rejectionReason || null,
+                fecha_actualizacion: new Date()
+            },
+            include: {
+                users: { select: { nombre: true, email: true } },
+                approver: { select: { nombre: true } },
+                adjuntos: true
+            }
+        });
 
         if (justification) {
             let title = 'Actualización de Justificación';
@@ -139,31 +105,54 @@ export class JustificationsService {
                 body = `Tu justificación "${justification.titulo}" ha sido rechazada. Motivo: ${rejectionReason}`;
             }
 
-            await this.notificationsService.sendPushNotification(justification.usuario_id, title, body);
+            try {
+                await this.notificationsService.sendPushNotification(justification.usuario_id, title, body);
+            } catch (e) {
+                console.error('Error sending push notification for justification:', e);
+            }
         }
 
-        // Fetch detailed info and attachments
-        const detailedSql = `
-            SELECT j.*, u.nombre as usuario_nombre, u.email as usuario_email, a.nombre as area_nombre
-            FROM justifications j
-            LEFT JOIN users u ON j.usuario_id = u.id
-            LEFT JOIN areas a ON j.area_id = a.id
-            WHERE j.id = $1
-        `;
-        const detailedResult = await (this.prisma as any).$queryRawUnsafe(detailedSql, id);
-        const justificationDetailed = detailedResult[0];
+        return this.getDetailedJustification(id);
+    }
 
-        const attachmentsSql = `SELECT id, ruta_archivo, tipo_archivo FROM justification_attachments WHERE justification_id = $1`;
-        const adjuntos = await (this.prisma as any).$queryRawUnsafe(attachmentsSql, id);
+    private async getDetailedJustification(id: number) {
+        const [justification, areas] = await Promise.all([
+            this.prisma.justifications.findUnique({
+                where: { id },
+                include: {
+                    users: { select: { nombre: true, email: true } },
+                    approver: { select: { nombre: true } },
+                    adjuntos: true
+                }
+            }),
+            this.prisma.areas.findMany()
+        ]);
 
-        return {
-            ...justificationDetailed,
+        if (!justification) return null;
+        return this.mapJustification(justification, areas);
+    }
+
+    private mapJustification(j: any, areas: any[]) {
+        const area = areas.find(a => a.id === j.area_id);
+        const mapped = {
+            ...j,
+            usuario_nombre: j.users?.nombre || null,
+            usuario_email: j.users?.email || null,
+            area_nombre: area?.nombre || null,
+            aprobado_por_nombre: j.approver?.nombre || null,
             user: {
-                nombre: justificationDetailed.usuario_nombre,
-                email: justificationDetailed.usuario_email
+                nombre: j.users?.nombre || null,
+                email: j.users?.email || null
             },
-            adjunto_url: adjuntos && adjuntos.length > 0 ? adjuntos[0].ruta_archivo : null,
-            adjuntos: adjuntos || []
+            adjunto_url: j.adjuntos && j.adjuntos.length > 0 ? j.adjuntos[0].ruta_archivo : null,
+            adjuntos: j.adjuntos || []
         };
+
+        // Remove Prisma objects to match legacy structure
+        delete mapped.users;
+        delete mapped.areas;
+        delete mapped.approver;
+
+        return mapped;
     }
 }
