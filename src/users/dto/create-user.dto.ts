@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, IsEnum, IsIn } from 'class-validator';
+import { UserRole } from '@prisma/client';
 
 export class CreateUserDto {
     @ApiProperty({ example: '12345678', description: 'User document number' })
@@ -27,10 +28,15 @@ export class CreateUserDto {
     @IsOptional()
     nombre?: string;
 
-    @ApiProperty({ example: 'empleado', description: 'User role', default: 'empleado' })
-    @IsString()
+    @ApiProperty({
+        example: 'OBRERO',
+        description: 'User role/contract type',
+        enum: UserRole,
+        default: UserRole.OBRERO
+    })
+    @IsEnum(UserRole, { message: 'rol must be one of: OBRERO, TRABAJADOR, EMPLEADO, ADMIN' })
     @IsOptional()
-    rol?: string;
+    rol?: UserRole;
 
     @ApiProperty({ required: false })
     @IsString()
@@ -52,6 +58,17 @@ export class CreateUserDto {
     @ApiProperty({ required: false })
     @IsOptional()
     status?: string;
+
+    @ApiProperty({
+        example: 'Aquanqa 1',
+        description: 'Company name',
+        enum: ['Aquanqa 1', 'Aquanqa 2'],
+        required: false
+    })
+    @IsString()
+    @IsOptional()
+    @IsIn(['Aquanqa 1', 'Aquanqa 2'], { message: 'empresa must be either Aquanqa 1 or Aquanqa 2' })
+    empresa?: string;
 
     @ApiProperty({ required: false })
     @IsOptional()

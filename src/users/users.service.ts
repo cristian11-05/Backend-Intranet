@@ -27,7 +27,14 @@ export class UsersService {
                     estado: true,
                     documento: true,
                     area_id: true,
+                    empresa: true,
                     fecha_registro: true,
+                    area: {
+                        select: {
+                            id: true,
+                            nombre: true,
+                        }
+                    },
                     // Excluded: contrasena (security/performance)
                 },
                 orderBy: [
@@ -164,18 +171,22 @@ export class UsersService {
                     nombre = `${rowData.nombres || ''} ${rowData.apellido_paterno || ''} ${rowData.apellido_materno || ''}`.trim();
                 }
 
-                let rol = rowData.rol || rowData.tipo_contrato || rowData.tipo_de_contrato || 'empleado';
-                // Normalize role
+                let rol = rowData.rol || rowData.tipo_contrato || rowData.tipo_de_contrato || 'OBRERO';
+                // Normalize role to UserRole enum values
                 const rolLower = rol.toString().toLowerCase();
-                if (rolLower.includes('obr') || rolLower.includes('emp')) rol = 'empleado';
-                if (rolLower.includes('adm')) rol = 'administrativo';
-                if (rolLower.includes('ges')) rol = 'gestor';
+                if (rolLower.includes('obr')) rol = 'OBRERO';
+                else if (rolLower.includes('trab')) rol = 'TRABAJADOR';
+                else if (rolLower.includes('emp')) rol = 'EMPLEADO';
+                else if (rolLower.includes('adm') || rolLower.includes('ges')) rol = 'ADMIN';
+                else rol = 'OBRERO'; // Default for unrecognized values
 
                 const estadoRaw = rowData.estado || rowData.status || rowData.condicion;
                 const estado = (estadoRaw === 'Activo' || estadoRaw === true || estadoRaw === 'true' || estadoRaw?.toString().toLowerCase().includes('alta'));
 
                 const area_id_raw = rowData.area_id || rowData.areaid || rowData.area_id_ || rowData.id_area;
                 const area_id = area_id_raw ? parseInt(area_id_raw.toString()) : undefined;
+
+                const empresa = rowData.empresa?.toString();
 
                 const contrasena = documento || rowData.contrasena || rowData.password;
 
@@ -193,6 +204,7 @@ export class UsersService {
                         area_id,
                         documento,
                         contrasena,
+                        empresa,
                     },
                     create: {
                         nombre: nombre || 'Usuario Importado',
@@ -201,6 +213,7 @@ export class UsersService {
                         rol,
                         estado,
                         area_id,
+                        empresa,
                         contrasena: contrasena || documento,
                     },
                 });

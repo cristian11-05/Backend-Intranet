@@ -8,6 +8,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum UserRole {
+  OBRERO
+  TRABAJADOR
+  EMPLEADO
+  ADMIN
+}
+
 model areas {
   id          Int     @id @default(autoincrement())
   nombre      String  @db.VarChar(100)
@@ -76,7 +83,8 @@ model users {
   email                   String           @unique @db.VarChar(150)
   contrasena              String
   area_id                 Int?
-  rol                     String?          @default("empleado") @db.VarChar(20)
+  rol                     UserRole         @default(OBRERO)
+  empresa                 String?          @db.VarChar(50)
   estado                  Boolean?         @default(true)
   documento               String?          @db.VarChar(50)
   fecha_registro          DateTime?        @default(now()) @db.Timestamp(6)
@@ -88,7 +96,7 @@ model users {
   suggestions             suggestions[]
   suggestions_reviewed    suggestions[]    @relation("SuggestionReviewer")
   user_sessions           user_sessions[]
-  areas                   areas?           @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
+  area                    areas?           @relation(fields: [area_id], references: [id], onUpdate: NoAction, map: "fk_users_area")
 }
 
 model suggestions {

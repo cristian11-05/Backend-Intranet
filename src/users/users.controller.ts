@@ -58,7 +58,7 @@ export class UsersController {
     @ApiResponse({ status: 400, description: 'Bad Request.' })
     async create(@Body() createUserDto: CreateUserDto) {
         console.log('Creating user with data:', createUserDto);
-        const { documento, dni, contrasena, area_id, estado, status, rol, tipo_contrato, ...userData } = createUserDto as any;
+        const { documento, dni, contrasena, area_id, estado, status, rol, tipo_contrato, empresa, ...userData } = createUserDto as any;
 
         const finalDocumento = (documento && documento !== '') ? documento : dni;
 
@@ -85,7 +85,7 @@ export class UsersController {
         const finalEstado = (estadoRaw === 'Activo' || estadoRaw === true || estadoRaw === 'true');
 
         // Map role/contract type
-        const finalRol = rol || tipo_contrato || 'empleado';
+        const finalRol = rol || tipo_contrato || 'OBRERO';
 
         // Map area_id to number if present
         const finalAreaIdRaw = area_id !== undefined ? area_id : createUserDto.areaId;
@@ -105,6 +105,7 @@ export class UsersController {
             rol: finalRol,
             area_id: finalAreaId,
             documento: finalDocumento,
+            empresa: empresa,
         };
 
         console.log('Final Prisma payload for create:', JSON.stringify(prismaData));
@@ -126,7 +127,7 @@ export class UsersController {
         console.log(`[Update] Received request for ID ${id}:`, JSON.stringify(updateUserDto));
 
         try {
-            const { documento, dni, area_id, areaId, estado, status, nombre, email, rol, tipo_contrato, contrasena, password } = updateUserDto as any;
+            const { documento, dni, area_id, areaId, estado, status, nombre, email, rol, tipo_contrato, contrasena, password, empresa } = updateUserDto as any;
 
             const finalDocumento = documento || dni;
             const finalRol = rol || tipo_contrato;
@@ -140,6 +141,7 @@ export class UsersController {
             if (finalRol !== undefined) mappedData.rol = finalRol;
             if (finalContrasena !== undefined) mappedData.contrasena = finalContrasena;
             if (finalDocumento !== undefined) mappedData.documento = finalDocumento;
+            if (empresa !== undefined) mappedData.empresa = empresa;
 
             if (finalEstadoRaw !== undefined) {
                 mappedData.estado = (finalEstadoRaw === 'Activo' || finalEstadoRaw === true || finalEstadoRaw === 'true');
@@ -173,6 +175,7 @@ export class UsersController {
                 if (mappedData.estado !== undefined) { fields.push(`estado = $${placeholdersCount++}`); values.push(mappedData.estado); }
                 if (mappedData.documento !== undefined) { fields.push(`documento = $${placeholdersCount++}`); values.push(mappedData.documento); }
                 if (mappedData.area_id !== undefined) { fields.push(`area_id = $${placeholdersCount++}`); values.push(mappedData.area_id); }
+                if (mappedData.empresa !== undefined) { fields.push(`empresa = $${placeholdersCount++}`); values.push(mappedData.empresa); }
 
                 if (fields.length === 0) {
                     return this.usersService.findOne({ id: +id });
