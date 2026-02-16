@@ -68,8 +68,8 @@ export class UsersController {
         }
 
         let finalEmail = userData.email;
-        if (!finalEmail && finalDocumento) {
-            finalEmail = finalDocumento; // Use DNI directly as email/identifier
+        if ((!finalEmail || finalEmail === '') && finalDocumento) {
+            finalEmail = `${finalDocumento}@aquanqa.com`;
         }
 
         if (!finalContrasena || finalContrasena === '') {

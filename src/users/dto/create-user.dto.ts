@@ -9,7 +9,7 @@ export class CreateUserDto {
     documento?: string;
 
     @ApiProperty({ example: 'user@example.com', description: 'User email' })
-    // @IsEmail() // Allow DNI as email identifier
+    @IsString()
     @IsOptional() // Controller logic implies email can be generated from documento
     email?: string;
 
