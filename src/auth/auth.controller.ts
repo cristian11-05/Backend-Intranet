@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UnauthorizedException, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { AuthGuard } from './auth.guard';
 
 @ApiTags('Auth')
 @Controller()
@@ -70,5 +71,17 @@ export class AuthController {
         } catch (error) {
             throw new UnauthorizedException('Refresh failed');
         }
+    }
+
+    @Get('auth/profile')
+    @UseGuards(AuthGuard)
+    @ApiOperation({ summary: 'Get current user profile' })
+    @ApiResponse({ status: 200, description: 'Return current user.' })
+    async getProfile(@Req() req: any) {
+        const user = await this.authService.getProfile(req.user.sub);
+        return {
+            status: true,
+            data: user
+        };
     }
 }

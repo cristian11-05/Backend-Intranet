@@ -6,6 +6,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { sanitizeEmpresa } from '../common/utils/string.utils';
+
 
 @ApiTags('Users')
 @Controller('users')
@@ -16,8 +18,13 @@ export class UsersController {
     @ApiOperation({ summary: 'Get all users (paginated)' })
     @ApiResponse({ status: 200, description: 'Return all users.' })
     async findAll(@Query() paginationDto: PaginationDto) {
-        return this.usersService.findAll(paginationDto.page, paginationDto.limit);
+        const result = await this.usersService.findAll(paginationDto.page, paginationDto.limit);
+        return {
+            status: true,
+            ...result
+        };
     }
+
 
     @Get('export')
     @ApiOperation({ summary: 'Export users to CSV' })
@@ -37,8 +44,14 @@ export class UsersController {
         if (!file) {
             throw new Error('Archivo no encontrado');
         }
-        return this.usersService.importExcel(file.buffer);
+        const result = await this.usersService.importExcel(file.buffer);
+        return {
+            status: true,
+            message: 'Importación finalizada',
+            data: result
+        };
     }
+
 
     @Post('bulk-delete')
     @ApiOperation({ summary: 'Delete multiple users by document' })
@@ -48,8 +61,14 @@ export class UsersController {
         if (!documents || !Array.isArray(documents)) {
             throw new Error('Lista de documentos no válida');
         }
-        return this.usersService.bulkRemove(documents, action);
+        const result = await this.usersService.bulkRemove(documents, action);
+        return {
+            status: true,
+            message: action === 'delete' ? 'Usuarios eliminados correctamente' : 'Usuarios inactivados correctamente',
+            data: result
+        };
     }
+
 
 
     @Post()
@@ -57,82 +76,56 @@ export class UsersController {
     @ApiResponse({ status: 201, description: 'The user has been successfully created.' })
     @ApiResponse({ status: 400, description: 'Bad Request.' })
     async create(@Body() createUserDto: CreateUserDto) {
-        console.log('Creating user with data:', createUserDto);
-        const { documento, dni, contrasena, area_id, estado, status, rol, tipo_contrato, empresa, ...userData } = createUserDto as any;
+        const { documento, contrasena, area_id, empresa, nombre, email, rol, dni, password } = createUserDto;
 
-        const finalDocumento = (documento && documento !== '') ? documento : dni;
-
-        let finalContrasena = (contrasena && contrasena !== '') ? contrasena : createUserDto.password;
-        if ((!finalContrasena || finalContrasena === '') && finalDocumento) {
-            finalContrasena = finalDocumento;
+        const finalDocumento = documento || dni;
+        if (!finalDocumento) {
+            throw new Error('El documento es requerido');
         }
 
-        let finalEmail = userData.email;
-        if ((!finalEmail || finalEmail === '') && finalDocumento) {
-            finalEmail = `${finalDocumento}@aquanqa.com`;
-        }
-
-        if (!finalContrasena || finalContrasena === '') {
-            throw new Error('La contraseña es requerida');
-        }
-
-        if (!finalEmail || finalEmail === '') {
-            throw new Error('El email es requerido');
-        }
-
-        // Map state string to boolean
-        const estadoRaw = estado !== undefined ? estado : status;
-        const finalEstado = (estadoRaw === 'Activo' || estadoRaw === true || estadoRaw === 'true');
-
-        // Map role/contract type
-        const finalRol = rol || tipo_contrato || 'OBRERO';
-
-        // Map area_id to number if present
-        const finalAreaIdRaw = area_id !== undefined ? area_id : createUserDto.areaId;
-        let finalAreaId: number | undefined = undefined;
-        if (finalAreaIdRaw !== undefined && finalAreaIdRaw !== null && finalAreaIdRaw !== '') {
-            const parsed = parseInt(finalAreaIdRaw.toString());
-            if (!isNaN(parsed)) {
-                finalAreaId = parsed;
-            }
-        }
+        let finalContrasena = contrasena || password || finalDocumento;
+        let finalEmail = email || `${finalDocumento}@aquanqa.com`;
 
         const prismaData = {
-            ...userData,
+            nombre,
             email: finalEmail,
             contrasena: finalContrasena,
-            estado: finalEstado,
-            rol: finalRol,
-            area_id: finalAreaId,
+            estado: true,
+            rol: rol || 'OBRERO',
+            area_id: area_id,
             documento: finalDocumento,
             empresa: empresa,
         };
 
-        console.log('Final Prisma payload for create:', JSON.stringify(prismaData));
+
+
         try {
-            return await this.usersService.create(prismaData as any);
+            const user = await this.usersService.create(prismaData as any);
+            return {
+                status: true,
+                message: 'Colaborador registrado correctamente',
+                data: user
+            };
         } catch (error) {
             if (error.code === 'P2002') {
                 throw new ConflictException('El usuario con este documento/email ya existe');
             }
-            console.error('Error in UsersController.create:', error.message);
             throw error;
         }
     }
+
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a user' })
     @ApiResponse({ status: 200, description: 'The user has been successfully updated.' })
     async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-        console.log(`[Update] Received request for ID ${id}:`, JSON.stringify(updateUserDto));
-
         try {
             const { documento, dni, area_id, areaId, estado, status, nombre, email, rol, tipo_contrato, contrasena, password, empresa } = updateUserDto as any;
 
             const finalDocumento = documento || dni;
             const finalRol = rol || tipo_contrato;
             const finalEstadoRaw = estado !== undefined ? estado : status;
-            const finalAreaIdRaw = area_id !== undefined ? areaId : area_id; // Added fallback
+            const finalAreaId = area_id !== undefined ? area_id : areaId;
             const finalContrasena = contrasena || password;
 
             const mappedData: any = {};
@@ -144,60 +137,68 @@ export class UsersController {
             if (empresa !== undefined) mappedData.empresa = empresa;
 
             if (finalEstadoRaw !== undefined) {
+
+
                 mappedData.estado = (finalEstadoRaw === 'Activo' || finalEstadoRaw === true || finalEstadoRaw === 'true');
             }
 
-            if (finalAreaIdRaw !== undefined || area_id !== undefined) {
-                const aId = finalAreaIdRaw !== undefined ? finalAreaIdRaw : area_id;
-                mappedData.area_id = parseInt(aId.toString());
+            if (finalAreaId !== undefined) {
+                mappedData.area_id = parseInt(finalAreaId.toString());
             }
 
-            console.log(`[Update] Final mapping for ID ${id}:`, JSON.stringify(mappedData));
-
-            // Try standard Prisma first (best case)
             try {
                 const updatedUser = await this.usersService.update(+id, mappedData);
-                console.log(`[Update] SUCCESS (Prisma) for ID ${id}`);
-                return updatedUser;
+                return {
+                    status: true,
+                    message: 'Colaborador actualizado correctamente',
+                    data: updatedUser
+                };
             } catch (prismaError: any) {
                 if (prismaError.code === 'P2002') {
                     throw new ConflictException('El usuario con este documento/email ya existe');
                 }
-                console.warn(`[Update] Prisma update failed for ID ${id}, falling back to dynamic SQL:`, prismaError.message);
 
+                // Falling back to raw SQL if Prisma fails for some reason (as previously implemented)
                 const fields: string[] = [];
                 const values: any[] = [];
                 let placeholdersCount = 1;
 
-                if (mappedData.nombre !== undefined) { fields.push(`nombre = $${placeholdersCount++}`); values.push(mappedData.nombre); }
-                if (mappedData.email !== undefined) { fields.push(`email = $${placeholdersCount++}`); values.push(mappedData.email); }
-                if (mappedData.rol !== undefined) { fields.push(`rol = $${placeholdersCount++}`); values.push(mappedData.rol); }
-                if (mappedData.estado !== undefined) { fields.push(`estado = $${placeholdersCount++}`); values.push(mappedData.estado); }
-                if (mappedData.documento !== undefined) { fields.push(`documento = $${placeholdersCount++}`); values.push(mappedData.documento); }
-                if (mappedData.area_id !== undefined) { fields.push(`area_id = $${placeholdersCount++}`); values.push(mappedData.area_id); }
-                if (mappedData.empresa !== undefined) { fields.push(`empresa = $${placeholdersCount++}`); values.push(mappedData.empresa); }
+                for (const key in mappedData) {
+                    fields.push(`${key} = $${placeholdersCount++}`);
+                    values.push(mappedData[key]);
+                }
 
                 if (fields.length === 0) {
-                    return this.usersService.findOne({ id: +id });
+                    const user = await this.usersService.findOne({ id: +id });
+                    return { status: true, message: 'No se realizaron cambios', data: user };
                 }
 
                 values.push(+id);
                 const sql = `UPDATE users SET ${fields.join(', ')} WHERE id = $${placeholdersCount}`;
                 await (this.usersService as any).prisma.$executeRawUnsafe(sql, ...values);
 
-                console.log(`[Update] SUCCESS (Dynamic SQL) for ID ${id}`);
-                return this.usersService.findOne({ id: +id });
+                const user = await this.usersService.findOne({ id: +id });
+                return {
+                    status: true,
+                    message: 'Colaborador actualizado correctamente',
+                    data: user
+                };
             }
         } catch (error) {
-            console.error(`[Update] CRITICAL ERROR for ID ${id}:`, error.message);
             throw error;
         }
     }
+
 
     @Delete(':id')
     @ApiOperation({ summary: 'Delete a user' })
     @ApiResponse({ status: 200, description: 'The user has been successfully deleted.' })
     async remove(@Param('id') id: string) {
-        return this.usersService.remove(+id);
+        await this.usersService.remove(+id);
+        return {
+            status: true,
+            message: 'Colaborador eliminado correctamente'
+        };
     }
+
 }

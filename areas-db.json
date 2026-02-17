@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "nombre": "Remuneraciones",
+    "descripcion": "Área de Remuneraciones"
+  },
+  {
+    "id": 2,
+    "nombre": "Bienestar Social",
+    "descripcion": "Área de Bienestar Social"
+  },
+  {
+    "id": 3,
+    "nombre": "ADP",
+    "descripcion": "Área de ADP"
+  },
+  {
+    "id": 4,
+    "nombre": "Recursos Humanos",
+    "descripcion": "Área de Recursos Humanos"
+  }
+]

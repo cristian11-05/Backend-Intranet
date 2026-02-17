@@ -11,7 +11,9 @@ import { JustificationsModule } from './justifications/justifications.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { AreasModule } from './areas/areas.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
+
 import { join } from 'path';
 
 @Module({
@@ -24,7 +26,9 @@ import { join } from 'path';
     NotificationsModule,
     ComunicadosModule,
     DashboardModule,
+    AreasModule,
     ServeStaticModule.forRoot({
+
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
     }),

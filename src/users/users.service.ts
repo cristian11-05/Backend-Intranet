@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { users as User, Prisma } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
+import { sanitizeEmpresa } from '../common/utils/string.utils';
+
 
 @Injectable()
 export class UsersService {
@@ -10,8 +12,17 @@ export class UsersService {
     async findOne(where: Prisma.usersWhereInput): Promise<User | null> {
         return this.prisma.users.findFirst({
             where,
+            include: {
+                area: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                    }
+                }
+            }
         });
     }
+
 
     async findAll(page: number = 1, limit: number = 5000) {
         const skip = (page - 1) * limit;
@@ -186,9 +197,10 @@ export class UsersService {
                 const area_id_raw = rowData.area_id || rowData.areaid || rowData.area_id_ || rowData.id_area;
                 const area_id = area_id_raw ? parseInt(area_id_raw.toString()) : undefined;
 
-                const empresa = rowData.empresa?.toString();
+                const empresa = sanitizeEmpresa(rowData.empresa);
 
                 const contrasena = documento || rowData.contrasena || rowData.password;
+
 
                 if (!documento || !email) {
                     errors.push({ row: rowNumber, error: 'Documento y Email son requeridos (o DNI para autogenerar email)' });

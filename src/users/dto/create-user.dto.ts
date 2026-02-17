@@ -1,16 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, IsEnum, IsIn } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, IsEnum, IsIn, IsInt } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { UserRole } from '@prisma/client';
+import { sanitizeEmpresa } from '../../common/utils/string.utils';
+
 
 export class CreateUserDto {
     @ApiProperty({ example: '12345678', description: 'User document number' })
     @IsString()
-    @IsOptional() // Logic says optional because sometimes it's auto-generated or handled differently, but let's check controller logic. Controller says if !password && documento, use documento.
-    documento?: string;
+    @IsNotEmpty()
+    documento: string;
 
-    @ApiProperty({ example: 'user@example.com', description: 'User email' })
-    @IsString()
-    @IsOptional() // Controller logic implies email can be generated from documento
+    @ApiProperty({ example: 'user@example.com', description: 'User email', required: false })
+    @IsEmail()
+    @IsOptional()
     email?: string;
 
     @ApiProperty({ example: 'password123', description: 'User password', required: false })
@@ -18,15 +21,10 @@ export class CreateUserDto {
     @IsOptional()
     contrasena?: string;
 
-    @ApiProperty({ required: false })
+    @ApiProperty({ example: 'John Doe', description: 'User full name', required: true })
     @IsString()
-    @IsOptional()
-    dni?: string;
-
-    @ApiProperty({ example: 'John Doe', description: 'User full name', required: false })
-    @IsString()
-    @IsOptional()
-    nombre?: string;
+    @IsNotEmpty()
+    nombre: string;
 
     @ApiProperty({
         example: 'OBRERO',
@@ -38,43 +36,36 @@ export class CreateUserDto {
     @IsOptional()
     rol?: UserRole;
 
-    @ApiProperty({ required: false })
-    @IsString()
-    @IsOptional()
-    tipo_contrato?: string;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    area_id?: string;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    areaId?: string;
+    @ApiProperty({ example: 1, description: 'Area ID (Department)', required: true })
+    @IsInt()
+    @IsNotEmpty()
+    area_id: number;
 
     @ApiProperty({ example: 'Activo', description: 'User status', default: 'Activo' })
     @IsOptional()
     estado?: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
-    status?: string;
-
     @ApiProperty({
-        example: 'Aquanqa 1',
+        example: 'AQUANQA I',
         description: 'Company name',
-        enum: ['Aquanqa 1', 'Aquanqa 2'],
-        required: false
+        enum: ['AQUANQA I', 'AQUANQA II'],
+        required: true
     })
     @IsString()
-    @IsOptional()
-    @IsIn(['Aquanqa 1', 'Aquanqa 2'], { message: 'empresa must be either Aquanqa 1 or Aquanqa 2' })
-    empresa?: string;
+    @IsNotEmpty()
+    @Transform(({ value }) => sanitizeEmpresa(value))
+    @IsIn(['AQUANQA I', 'AQUANQA II'], { message: 'empresa must be either AQUANQA I or AQUANQA II' })
+    empresa: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
-    id?: number;
 
-    @ApiProperty({ required: false })
+
+    // Optional fields for legacy/compatibility or internal use
+    @IsString()
+    @IsOptional()
+    dni?: string;
+
+    @IsString()
     @IsOptional()
     password?: string;
 }
+

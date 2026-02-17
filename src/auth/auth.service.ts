@@ -82,7 +82,7 @@ export class AuthService {
         };
     }
 
-    private async updateRefreshToken(userId: number, refreshToken: string, deviceData?: any) {
+    async updateRefreshToken(userId: number, refreshToken: string, deviceData?: any) {
         const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
@@ -111,4 +111,12 @@ export class AuthService {
             },
         });
     }
+
+    async getProfile(userId: number) {
+        const user = await this.usersService.findOne({ id: userId });
+        if (!user) throw new UnauthorizedException('Usuario no encontrado');
+        const { contrasena, ...result } = user as any;
+        return result;
+    }
 }
+
