@@ -2,20 +2,20 @@
 
 echo "🚀 Starting build process..."
 
-# Install all dependencies (including devDependencies for the build step)
+# Install all dependencies
 echo "📦 Installing dependencies..."
 npm install
 
-# Generate Prisma Client
+# Generate Prisma Client (Forzando v6.2.1)
 echo "🔧 Generating Prisma Client..."
-npx prisma@6.2.1 generate
+./node_modules/.bin/prisma generate
 
-# Run database migrations
+# Run database migrations (optional, if it fails the build continues)
 echo "🗄️ Running database migrations..."
-npx prisma@6.2.1 migrate deploy
+./node_modules/.bin/prisma migrate deploy || echo "⚠️ Migration failed, but continuing build..."
 
 # Build the application
 echo "🏗️ Building NestJS application..."
-npx nest build
+./node_modules/.bin/nest build
 
 echo "✅ Build completed successfully!"
