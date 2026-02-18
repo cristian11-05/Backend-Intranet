@@ -17,7 +17,6 @@ export class AuthController {
     @ApiResponse({ status: 200, description: 'Successfully logged in.' })
     @ApiResponse({ status: 401, description: 'Unauthorized.' })
     async signInMobile(@Body() loginDto: LoginDto) {
-        console.log('Mobile login attempt:', loginDto);
         const { username, email, dni, password, deviceId, deviceName } = loginDto;
         const identifier = username || email || dni;
 
@@ -27,10 +26,11 @@ export class AuthController {
 
         try {
             const result = await this.authService.signIn(identifier, password, { deviceId, deviceName });
-            console.log('Mobile login success for:', identifier);
-            return result;
+            return {
+                status: true,
+                ...result
+            };
         } catch (error) {
-            console.error('Mobile login failed:', error.message);
             throw error;
         }
     }
@@ -42,7 +42,6 @@ export class AuthController {
     @ApiResponse({ status: 200, description: 'Successfully logged in.' })
     @ApiResponse({ status: 401, description: 'Unauthorized.' })
     async signIn(@Body() loginDto: LoginDto) {
-        console.log('Login attempt:', loginDto);
         const { username, email, dni, password, deviceId, deviceName } = loginDto;
         const identifier = username || email || dni;
 
@@ -52,10 +51,11 @@ export class AuthController {
 
         try {
             const result = await this.authService.signIn(identifier, password, { deviceId, deviceName });
-            console.log('Login success for:', identifier);
-            return result;
+            return {
+                status: true,
+                ...result
+            };
         } catch (error) {
-            console.error('Login failed:', error.message);
             throw error;
         }
     }

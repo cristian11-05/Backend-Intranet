@@ -36,10 +36,6 @@ export class AuthService {
         const response = {
             ...tokens,
             user: result,
-            data: {
-                ...tokens,
-                user: result,
-            },
         };
 
         return response;

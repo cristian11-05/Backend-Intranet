@@ -69,17 +69,18 @@ export class UsersService {
 
     async exportUsers(): Promise<string> {
         const { data: users } = await this.findAll(1, 10000);
-        const headers = ['ID', 'Email', 'Nombre', 'Rol', 'Estado', 'Creado'];
+        const headers = ['Nombre', 'Documento', 'Email', 'Rol', 'Empresa', 'Estado', 'Area'];
         const csvRows = [headers.join(',')];
 
         for (const user of users) {
             const row = [
-                user.id,
+                `"${user.nombre || ''}"`,
+                user.documento || '',
                 user.email,
-                user.nombre || '',
                 user.rol || '',
-                user.estado,
-                user.fecha_registro?.toISOString() || ''
+                user.empresa || '',
+                user.estado ? 'Activo' : 'Inactivo',
+                `"${user.area?.nombre || ''}"`
             ];
             csvRows.push(row.join(','));
         }
@@ -105,33 +106,19 @@ export class UsersService {
         });
     }
 
-    async bulkRemove(documents: string[], action: 'inactivate' | 'delete' = 'inactivate'): Promise<{ success: number; notFound: string[] }> {
-        let successCount = 0;
-        const notFound: string[] = [];
-
-        for (const doc of documents) {
-            const user = await this.prisma.users.findFirst({
-                where: { documento: doc }
+    async bulkRemove(documents: string[], action: 'inactivate' | 'delete' = 'inactivate'): Promise<{ success: number }> {
+        if (action === 'delete') {
+            const result = await this.prisma.users.deleteMany({
+                where: { documento: { in: documents } }
             });
-
-            if (user) {
-                if (action === 'delete') {
-                    await this.prisma.users.delete({
-                        where: { id: user.id }
-                    });
-                } else {
-                    await this.prisma.users.update({
-                        where: { id: user.id },
-                        data: { estado: false }
-                    });
-                }
-                successCount++;
-            } else {
-                notFound.push(doc);
-            }
+            return { success: result.count };
+        } else {
+            const result = await this.prisma.users.updateMany({
+                where: { documento: { in: documents } },
+                data: { estado: false }
+            });
+            return { success: result.count };
         }
-
-        return { success: successCount, notFound };
     }
 
     async importExcel(buffer: Buffer): Promise<{ success: number; errors: any[] }> {

@@ -59,7 +59,7 @@ export class UsersController {
     async bulkRemove(@Body() body: { documents: string[], action?: 'inactivate' | 'delete' }) {
         const { documents, action = 'inactivate' } = body;
         if (!documents || !Array.isArray(documents)) {
-            throw new Error('Lista de documentos no válida');
+            throw new ConflictException('Lista de documentos no válida');
         }
         const result = await this.usersService.bulkRemove(documents, action);
         return {
@@ -80,11 +80,11 @@ export class UsersController {
 
         const finalDocumento = documento || dni;
         if (!finalDocumento) {
-            throw new Error('El documento es requerido');
+            throw new ConflictException('El documento es requerido');
         }
 
-        let finalContrasena = contrasena || password || finalDocumento;
-        let finalEmail = email || `${finalDocumento}@aquanqa.com`;
+        const finalContrasena = contrasena || password || finalDocumento;
+        const finalEmail = email || `${finalDocumento}@aquanqa.com`;
 
         const prismaData = {
             nombre,
@@ -96,8 +96,6 @@ export class UsersController {
             documento: finalDocumento,
             empresa: empresa,
         };
-
-
 
         try {
             const user = await this.usersService.create(prismaData as any);
