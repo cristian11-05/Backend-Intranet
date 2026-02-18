@@ -1,224 +1,39 @@
-# Guía de Despliegue en Render
+# Guía de Despliegue en Render (Optimizado)
 
-Este documento explica cómo desplegar el backend en Render para que el desarrollador móvil pueda acceder a la API.
+Esta guía te permitirá desplegar el backend de forma profesional en Render usando el archivo `render.yaml` (Blueprints), lo cual automatiza la creación de la base de datos y el servicio web.
 
-## 📋 Requisitos Previos
-
-- Cuenta en [Render.com](https://render.com) (gratis)
-- Repositorio en GitHub con el código
-- Cuenta en GitHub
-
-## 🚀 Pasos de Despliegue
+## 🚀 Pasos para el Despliegue
 
 ### 1. Preparar el Repositorio
-
-El proyecto ya está configurado con los archivos necesarios:
-- ✅ `render.yaml` - Configuración de Render
-- ✅ `build.sh` - Script de construcción
-- ✅ `.gitignore` - Archivos ignorados
-
-**Subir cambios a GitHub:**
-
+Asegúrate de que los últimos cambios (con el endpoint `/health`) estén en GitHub:
 ```bash
 git add .
-git commit -m "Add Render deployment configuration"
+git commit -m "Final improvements for deployment"
 git push origin main
 ```
 
-### 2. Crear Cuenta en Render
+### 2. Despliegue Automático con Blueprints
+1. Ve a tu [Dashboard de Render](https://dashboard.render.com/).
+2. Haz clic en **"New +"** -> **"Blueprint"**.
+3. Conecta tu repositorio: `https://github.com/cristian11-05/Backend-Intranet.git`.
+4. Render leerá el archivo `render.yaml`.
+5. **Variables de Entorno**:
+   - `DATABASE_URL`: **IMPORTANTE**. Pega aquí tu URL de conexión de Supabase (la que tienes en tu `.env`).
+   - `JWT_SECRET`: Ingresa una cadena larga y aleatoria.
+6. Haz clic en **"Apply"**.
 
-1. Ve a https://render.com
-2. Click en **"Get Started"**
-3. Conecta con tu cuenta de GitHub
-4. Autoriza a Render para acceder a tus repositorios
+### 3. Configurar el "Keep-Alive" (Evitar que se duerma)
+Como usas el plan gratuito, el backend se dormirá tras 15 minutos sin tráfico. Para evitarlo:
+1. Crea una cuenta en [Cron-job.org](https://cron-job.org/) (Gratis).
+2. Crea un nuevo **Cronjob**.
+3. **URL**: `https://back-almuerzo.onrender.com/health` (Cambia la URL por la que te asigne Render).
+4. **Frecuencia**: Cada **10 minutos**.
+5. Esto mantendrá la instancia activa las 24/7 sin costo adicional.
 
-### 3. Crear Base de Datos PostgreSQL
+## 🛠️ Verificación
+- **Endpoint de Salud**: `https://tu-app.onrender.com/health`
+- **Swagger Docs**: `https://tu-app.onrender.com/api/docs`
 
-1. En el dashboard de Render, click **"New +"** → **"PostgreSQL"**
-2. Configuración:
-   - **Name:** `back-almuerzo-db`
-   - **Database:** `almuerzo`
-   - **User:** `almuerzo_user`
-   - **Region:** Oregon (o el más cercano)
-   - **Plan:** **Free** (para desarrollo)
-3. Click **"Create Database"**
-4. **IMPORTANTE:** Copia la **Internal Database URL** (la necesitarás después)
-
-### 4. Crear Web Service
-
-1. En el dashboard, click **"New +"** → **"Web Service"**
-2. Conecta tu repositorio de GitHub:
-   - Busca `Backend_Intranet` o `back-almuerzo`
-   - Click **"Connect"**
-3. Configuración del servicio:
-   - **Name:** `back-almuerzo`
-   - **Region:** Oregon (mismo que la BD)
-   - **Branch:** `main`
-   - **Runtime:** Node
-   - **Build Command:** `chmod +x build.sh && ./build.sh`
-   - **Start Command:** `npm run start:prod`
-   - **Plan:** **Free**
-
-### 5. Configurar Variables de Entorno
-
-En la sección **"Environment"**, agrega estas variables:
-
-| Variable | Valor |
-|----------|-------|
-| `NODE_ENV` | `production` |
-| `DATABASE_URL` | (Pega la Internal Database URL del paso 3) |
-| `JWT_SECRET` | (Genera una clave segura, ver abajo) |
-| `PORT` | `3000` |
-
-**Generar JWT_SECRET seguro:**
-```bash
-# En tu terminal local:
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-```
-
-### 6. Desplegar
-
-1. Click **"Create Web Service"**
-2. Render comenzará a construir y desplegar automáticamente
-3. Espera 5-10 minutos (primera vez es más lento)
-4. Verifica los logs en tiempo real
-
-### 7. Verificar Despliegue
-
-Una vez completado, tu API estará disponible en:
-
-```
-https://back-almuerzo.onrender.com
-```
-
-**Endpoints principales:**
-- 📚 Documentación Swagger: `https://back-almuerzo.onrender.com/api/docs`
-- 🔐 Login: `POST https://back-almuerzo.onrender.com/auth/login`
-- 👥 Usuarios: `GET https://back-almuerzo.onrender.com/users`
-- 🍽️ Pedidos: `GET https://back-almuerzo.onrender.com/orders`
-
-## 📱 Para el Desarrollador Móvil
-
-Comparte esta información con el desarrollador móvil:
-
-### URL Base de la API
-```
-https://back-almuerzo.onrender.com
-```
-
-### Documentación Interactiva
-```
-https://back-almuerzo.onrender.com/api/docs
-```
-
-Aquí puede ver todos los endpoints, probarlos y ver los modelos de datos.
-
-### Ejemplo de Uso
-
-**Login:**
-```bash
-POST https://back-almuerzo.onrender.com/auth/login
-Content-Type: application/json
-
-{
-  "email": "usuario@example.com",
-  "contrasena": "password123"
-}
-```
-
-**Respuesta:**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "nombre": "Usuario Test",
-    "email": "usuario@example.com",
-    "rol": "empleado"
-  }
-}
-```
-
-**Usar el token en requests:**
-```bash
-GET https://back-almuerzo.onrender.com/users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-## ⚠️ Importante - Plan Gratuito
-
-El plan gratuito de Render tiene estas limitaciones:
-
-- **Sleep automático:** Después de 15 minutos de inactividad, el servicio se "duerme"
-- **Primera request lenta:** Cuando está dormido, la primera request toma ~30 segundos
-- **Recursos limitados:** 512 MB RAM, CPU compartida
-
-**Solución para desarrollo:**
-- Hacer una request cada 10-15 minutos para mantenerlo activo
-- O usar un servicio de "ping" gratuito como [UptimeRobot](https://uptimerobot.com)
-
-**Para producción:**
-- Considerar plan de pago ($7/mes) que no tiene sleep
-
-## 🔄 Despliegue Automático
-
-Render está configurado para **auto-deploy**:
-- Cada vez que hagas `git push` a la rama `main`
-- Render detectará los cambios y desplegará automáticamente
-- Verás el progreso en el dashboard
-
-## 📊 Monitoreo
-
-En el dashboard de Render puedes:
-- Ver logs en tiempo real
-- Monitorear uso de recursos
-- Ver historial de deploys
-- Configurar alertas
-
-## 🐛 Troubleshooting
-
-### Error: "Build failed"
-- Revisa los logs de build
-- Verifica que todas las dependencias estén en `package.json`
-- Asegúrate que `build.sh` tenga permisos de ejecución
-
-### Error: "Application failed to start"
-- Revisa que `DATABASE_URL` esté configurada correctamente
-- Verifica que `JWT_SECRET` esté configurado
-- Revisa los logs de la aplicación
-
-### Error: "Cannot connect to database"
-- Usa la **Internal Database URL**, no la External
-- Verifica que la base de datos esté en la misma región
-- Espera unos minutos, la BD puede tardar en iniciar
-
-### La API responde lento
-- Normal en plan gratuito después de inactividad
-- Primera request toma ~30 segundos (cold start)
-- Considera hacer ping cada 10 minutos
-
-## 💡 Alternativas a Render
-
-Si Render no funciona bien, considera:
-
-1. **Railway** (https://railway.app)
-   - Similar a Render
-   - $5 de crédito gratis mensual
-   - Más rápido que Render
-
-2. **Fly.io** (https://fly.io)
-   - Más técnico
-   - Muy rápido
-   - Gratis hasta cierto uso
-
-3. **Heroku**
-   - Más conocido
-   - Ya no tiene plan gratuito
-   - $5/mes mínimo
-
-## 📞 Soporte
-
-Si tienes problemas:
-1. Revisa los logs en Render dashboard
-2. Consulta la [documentación de Render](https://render.com/docs)
-3. Verifica que el proyecto compile localmente con `npm run build`
+## ⚠️ Notas Importantes
+- La primera vez el despliegue puede tardar ~5 minutos mientras se crea la base de datos y se instalan dependencias.
+- No es necesario crear la base de datos manualmente; el Blueprint lo hace por ti siguiendo el archivo `render.yaml`.
