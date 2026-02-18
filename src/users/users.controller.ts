@@ -17,8 +17,18 @@ export class UsersController {
     @Get()
     @ApiOperation({ summary: 'Get all users (paginated)' })
     @ApiResponse({ status: 200, description: 'Return all users.' })
-    async findAll(@Query() paginationDto: PaginationDto) {
-        const result = await this.usersService.findAll(paginationDto.page, paginationDto.limit);
+    async findAll(
+        @Query() paginationDto: PaginationDto,
+        @Query('empresa') empresa?: string,
+        @Query('nombre') nombre?: string,
+        @Query('documento') documento?: string
+    ) {
+        const sanitizedEmpresa = empresa ? sanitizeEmpresa(empresa) : undefined;
+        const result = await this.usersService.findAll(
+            paginationDto.page,
+            paginationDto.limit,
+            { empresa: sanitizedEmpresa, nombre, documento }
+        );
         return {
             status: true,
             ...result

@@ -24,10 +24,26 @@ export class UsersService {
     }
 
 
-    async findAll(page: number = 1, limit: number = 5000) {
+    async findAll(page: number = 1, limit: number = 5000, filters?: { empresa?: string, nombre?: string, documento?: string }) {
         const skip = (page - 1) * limit;
+
+        const where: Prisma.usersWhereInput = {};
+
+        if (filters?.empresa) {
+            where.empresa = filters.empresa;
+        }
+
+        if (filters?.nombre) {
+            where.nombre = { contains: filters.nombre, mode: 'insensitive' };
+        }
+
+        if (filters?.documento) {
+            where.documento = { contains: filters.documento };
+        }
+
         const [data, total] = await Promise.all([
             this.prisma.users.findMany({
+                where,
                 skip,
                 take: limit,
                 select: {
@@ -46,14 +62,13 @@ export class UsersService {
                             nombre: true,
                         }
                     },
-                    // Excluded: contrasena (security/performance)
                 },
                 orderBy: [
                     { estado: 'desc' },
                     { fecha_registro: 'desc' }
                 ]
             }),
-            this.prisma.users.count(),
+            this.prisma.users.count({ where }),
         ]);
 
         return {
