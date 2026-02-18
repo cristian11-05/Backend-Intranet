@@ -1,0 +1,26 @@
+[33mf01b0a4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Updates before push to new repo
+[33ma518bf6[m feat: add areas module, auth guard, and improve user validation with empresa field
+[33mebf4382[m merge: resolve conflicts and integrate empresa and roles updates
+[33ma2ca821[m feat: update user roles to 4 types and add empresa field differentiation
+[33m888c929[m Add test files for count and serialize
+[33mfdc901a[m Fix: resolve white screen, comunicado save error, and user creation validation
+[33m938b406[m Add test files for count and serialize
+[33m94a27ba[m Fix: resolve white screen, comunicado save error, and user creation validation
+[33mf3e9a27[m chore: resolve conflicts favoring local version
+[33m0af5919[m feat: implement DNI-based default credentials, improve bulk upload/delete, and add duplicate user error handling
+[33mb3eeee2[m Fix: Solucionado error al guardar comunicados, optimización de rendimiento (N+1, groupBy) y limpieza de código
+[33mf28f545[m feat: implement robust excel import, bulk delete with options (inactivate/delete), and sorting by active status
+[33m9f14a1b[m feat: implement dashboard stats endpoint and Spanish labels for frontend compatibility
+[33m9f07aac[m Fix user update persistence (DNI/Status), synchronize schema.prisma, and normalize justification/suggestion statuses
+[33m9fff459[m feat: simplificacion del modulo de sugerencias, auditoria y notificaciones push
+[33m8761e27[m Refactor backend y actualización de módulos
+[33m376dd2d[m Elimina dist del repositorio y actualiza Prisma
+[33m89e1310[m feat: implement validation, swagger docs, pagination, and file uploads
+[33m682371f[m feat: Implement Comunicados, Soft Delete for Users, and Notifications
+[33m73ac561[m backend-intranet
+[33m18c3612[m feat: implement JWT auth and fix frontend access_token error with redundant fields
+[33m61b184c[m feat: implement basic auth and fix prisma 7 initialization issues
+[33m4ce6aa6[m Merge remote main with local NestJS backend
+[33m5f378a1[m Inicializo backend NestJS
+[33ma83319c[m back de 0
+[33m91108a0[m Initial setup: Fixed Prisma imports, BcryptService export, and configured IPv4 database connection

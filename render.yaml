@@ -8,7 +8,7 @@ services:
     plan: free
     buildCommand: chmod +x build.sh && ./build.sh
     startCommand: npm run start:prod
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
