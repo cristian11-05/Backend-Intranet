@@ -28,7 +28,7 @@ export class AuthController {
             const result = await this.authService.signIn(identifier, password, { deviceId, deviceName });
             return {
                 status: true,
-                ...result
+                data: result
             };
         } catch (error) {
             throw error;
@@ -53,7 +53,7 @@ export class AuthController {
             const result = await this.authService.signIn(identifier, password, { deviceId, deviceName });
             return {
                 status: true,
-                ...result
+                data: result
             };
         } catch (error) {
             throw error;
